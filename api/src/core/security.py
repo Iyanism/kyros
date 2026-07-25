@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 
-from src.core.config import setting
+from src.core.config import settings
 
 ph = PasswordHasher()
 
@@ -25,42 +25,34 @@ def verify_password(password: str, hash_password: str) -> bool:
         return False
 
 
-def create_access_token(
-    data: dict[str, object], expire_delta: timedelta | None = None
-) -> str:
+def create_access_token(data: dict[str, object]) -> str | None:
     to_encode = data.copy()
+    expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    if expire_delta:
-        expire = datetime.now(timezone.utc) + expire_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            minutes=setting.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
-
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire})
     try:
         encode_jwt = jwt.encode(
-            to_encode, setting.SECRET_KEY.get_secret_value(), setting.ALGORITHM
+            to_encode,
+            settings.JWT_SECRET_KEY.get_secret_value(),
+            settings.JWT_ALGORITHM,
         )
-    except JWTError as jwterr:
-        print(f"JWT Encoding ERROR: {jwterr}")
 
-    return encode_jwt
+        return encode_jwt
+    except JWTError as jwterr:
+        print(f"JWT Token Creation ERROR: {jwterr}")
+        return None
 
 
 def verify_access_token(token: str) -> dict[str, object] | None:
     try:
         payload = jwt.decode(
-            token, setting.SECRET_KEY.get_secret_value(), setting.ALGORITHM
+            token, settings.JWT_SECRET_KEY.get_secret_value(), settings.JWT_ALGORITHM
         )
 
         return payload
+
+    except ExpiredSignatureError:
+        print("Token has Expired")
     except JWTError as jwterr:
-        print(f"JWT Verification ERROR: {jwterr}")
-        return None
-    except ExpiredSignatureError as jwterr:
-        print(f"JWT Verification ERROR: {jwterr}")
-        return None
-    except JWTClaimsError as jwterr:
         print(f"JWT Verification ERROR: {jwterr}")
         return None
