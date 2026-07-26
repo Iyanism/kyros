@@ -26,6 +26,7 @@ def create_db_engine() -> AsyncEngine:
         logger.error(f"Failed to create database engine: {str(e)}")
         raise RuntimeError("Database connection failed") from e
 
+
 engine = create_db_engine()
 
 AsyncSessionLocal = async_sessionmaker(
@@ -35,8 +36,10 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
 )
 
+
 class Base(DeclarativeBase):
     pass
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
