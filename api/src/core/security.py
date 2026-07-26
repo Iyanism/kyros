@@ -1,31 +1,41 @@
 from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError, VerifyMismatchError
+from argon2.exceptions import InvalidHash, VerificationError
 from jose import ExpiredSignatureError, JWTError, jwt
 
+from core.logger import logger
 from src.core.config import settings
 
 ph = PasswordHasher()
 
 
 def hash_password(password: str) -> str:
-    return ph.hash(password)
+    try:
+        return ph.hash(password)
+    except Exception as e:
+        logger.error(f"Password hashing failed: {str(e)}", exc_info=True)
+        raise RuntimeError("Unable to process password") from e
 
 
 def verify_password(password: str, hash_password: str) -> bool:
     try:
         return ph.verify(password, hash_password)
 
-    except VerifyMismatchError:
+    except VerificationError:
+        logger.warning("Invalid password attempt")
         return False
 
-    except VerificationError as e:
-        print("Password Verfication ERROR:", e)
+    except InvalidHash:
+        logger.error("Invalid hash format in database")
+        return False
+
+    except Exception as e:
+        logger.error(f"Password verification error: {str(e)}")
         return False
 
 
-def create_access_token(data: dict[str, object]) -> str | None:
+def create_access_token(data: dict[str, object]) -> str:
     to_encode = data.copy()
     expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
@@ -38,9 +48,12 @@ def create_access_token(data: dict[str, object]) -> str | None:
         )
 
         return encode_jwt
-    except JWTError as jwterr:
-        print(f"JWT Token Creation ERROR: {jwterr}")
-        return None
+    except JWTError as e:
+        logger.error(f"Token creation failed: {str(e)}")
+        raise RuntimeError("Failed to create access token") from e
+    except Exception as e:
+        logger.error(f"Token creation failed: {str(e)}")
+        raise
 
 
 def verify_access_token(token: str) -> dict[str, object] | None:
@@ -52,7 +65,10 @@ def verify_access_token(token: str) -> dict[str, object] | None:
         return payload
 
     except ExpiredSignatureError:
-        print("Token has Expired")
-    except JWTError as jwterr:
-        print(f"JWT Verification ERROR: {jwterr}")
+        logger.warning("Token has expired")
+    except JWTError as e:
+        logger.warning(f"Token verification failed: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected token error: {str(e)}")
         return None
