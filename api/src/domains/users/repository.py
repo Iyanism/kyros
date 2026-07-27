@@ -1,9 +1,10 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domains.users.schema import UserCreate, UserResponse
+from domains.users.schema import UserCreate, UserResponse, UserUpdate
 from src.domains.users.model import User
 
 
@@ -26,3 +27,28 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user_data)
         return UserResponse.model_validate(user_data)
+
+    async def delete(self, user_id: UUID) -> None:
+            user = self.get_by_id(user_id)
+            await self.db.delete(user)
+            await self.db.commit()
+            return
+
+    async def update(self, user_id: UUID, data: UserUpdate) -> UserResponse:
+            user = self.get_by_id(user_id)
+            update_data = data.model_dump()
+
+            for field, value in update_data:
+                setattr(user, field, value)
+
+            await self.db.commit()
+            await self.db.refresh(user)
+
+            return UserResponse.model_validate(user)
+
+    async def update_last_login(self, user: UserResponse) -> UserResponse:
+            user.last_login = datetime.now(UTC)
+            await self.db.commit()
+            await self.db.refresh(user)
+
+            return UserResponse.model_validate(user)
