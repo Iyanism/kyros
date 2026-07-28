@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 
-from core.logger import logger
 from src.core.config import settings
+from src.core.logger import logger
 
 
 def create_db_engine() -> AsyncEngine:
