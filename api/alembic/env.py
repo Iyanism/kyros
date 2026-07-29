@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from src.core.config import settings
 from src.core.database import Base
-from src.domains.users import model  # noqa # pyright: ignore[reportUnusedImport]
+from src.domains.clients import (
+    model as client_model,  # noqa # pyright: ignore[reportUnusedImport]
+)
+from src.domains.users import (
+    model as user_model,  # noqa # pyright: ignore[reportUnusedImport]
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

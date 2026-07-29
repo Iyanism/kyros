@@ -37,7 +37,9 @@ class UserRepository:
         await self.db.flush()
         return True
 
-    async def update(self, user_id: UUID, update_data: Mapping[str, UUID | str | int]) -> User | None:
+    async def update(
+        self, user_id: UUID, update_data: Mapping[str, UUID | str | int]
+    ) -> User | None:
         user = await self.get_by_id(user_id)
         if user is None:
             return None
