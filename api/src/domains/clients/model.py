@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -43,6 +43,10 @@ class Client(Base):
         String(100),
         nullable=False,
     )
+    pin_code: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
     gstin: Mapped[str] = mapped_column(
         String(50),
         nullable=True,
@@ -60,7 +64,5 @@ class Client(Base):
     )
 
     user: Mapped[str] = relationship(
-        "User",
-        back_populates="client",
-        cascade="all, delete-orphan"
+        "User", back_populates="client", cascade="all, delete-orphan"
     )
