@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,7 +17,7 @@ class Client(Base):
         index=True,
         default=uuid.uuid4,
     )
-    company_name: Mapped[str] = mapped_column(
+    name: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
     )
@@ -27,7 +27,7 @@ class Client(Base):
         unique=True,
         index=True,
     )
-    phone: Mapped[str] = mapped_column(
+    phone_number: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
     )
@@ -50,6 +50,11 @@ class Client(Base):
     gstin: Mapped[str] = mapped_column(
         String(50),
         nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
