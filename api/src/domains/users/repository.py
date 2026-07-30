@@ -16,11 +16,14 @@ class UserRepository:
         return await self.db.get(User, user_id)
 
     async def get_by_email(self, user_email: str) -> User | None:
-        return await self.db.get(User, user_email)
+        stmt = select(User).where(User.email == user_email)
+        result = await self.db.execute(stmt)
+
+        return result.scalar_one_or_none()
 
     async def create(self, user_data: User) -> User:
         self.db.add(user_data)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(user_data)
         return user_data
 
@@ -53,7 +56,7 @@ class UserRepository:
 
     async def update_last_login(self, user: User) -> User:
         user.last_login = datetime.now(UTC)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(user)
 
         return user
