@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import TYPE_CHECKING, override
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
+
+if TYPE_CHECKING:
+    from src.domains.clients.model import Client
 
 
 class UserRole(StrEnum):
@@ -43,7 +49,7 @@ class User(Base):
         String(255),
         nullable=False,
     )
-    phone: Mapped[str | None] = mapped_column(
+    phone_number: Mapped[str | None] = mapped_column(
         String(20),
         nullable=True,
     )
@@ -73,7 +79,23 @@ class User(Base):
         nullable=False,
     )
 
-    client: Mapped[str] = relationship(
+    client: Mapped["Client"] = relationship(
         "Client",
         back_populates="users",
     )
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == UserRole.ADMIN
+
+    @property
+    def is_client(self) -> bool:
+        return self.role == UserRole.CLIENT
+
+    @property
+    def is_operator(self) -> bool:
+        return self.role == UserRole.OPERATOR
+
+    @override
+    def __repr__(self) -> str:
+        return f"<User(id={self.id}, email={self.email}, name={self.full_name}, role={self.role}>"
