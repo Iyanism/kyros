@@ -1,14 +1,13 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing_extensions import Mapping
 
 from src.domains.clients.model import Client
 
 
-class CLientRepository:
+class ClientRepository:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
 
@@ -16,11 +15,13 @@ class CLientRepository:
         return await self.db.get(Client, client_id)
 
     async def get_by_email(self, client_email: str) -> Client | None:
-        return await self.db.get(Client, client_email)
+        stmt = select(Client).where(Client.email == client_email)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def create(self, client_data: Client) -> Client:
         self.db.add(client_data)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(client_data)
         return client_data
 
@@ -33,10 +34,10 @@ class CLientRepository:
     async def deactivate(self, client_id: UUID) -> bool:
         client: Client | None = await self.get_by_id(client_id)
         if client is None:
-            raise Exception("Client not found")
+            return False
 
         client.is_active = False
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(client)
 
         return True
@@ -44,7 +45,7 @@ class CLientRepository:
     async def delete(self, client_id: UUID) -> bool:
         client: Client | None = await self.get_by_id(client_id)
         if client is None:
-            raise Exception("Client not found")
+            return False
 
         await self.db.delete(client)
         await self.db.flush()
@@ -53,7 +54,7 @@ class CLientRepository:
 
     async def update(
         self, client_id: UUID, updated_data: Mapping[str, UUID | str | int]
-    ) -> Client:
+    ) -> Client | None:
         client: Client | None = await self.get_by_id(client_id)
         if client is None:
             raise Exception("Client not found")
