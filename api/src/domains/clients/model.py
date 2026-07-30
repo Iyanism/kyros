@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING, override
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
+
+if TYPE_CHECKING:
+    from src.domains.users.model import User
 
 
 class Client(Base):
@@ -28,7 +34,7 @@ class Client(Base):
         index=True,
     )
     phone_number: Mapped[str] = mapped_column(
-        String(20),
+        String(10),
         nullable=False,
     )
     address: Mapped[str] = mapped_column(
@@ -44,11 +50,11 @@ class Client(Base):
         nullable=False,
     )
     pin_code: Mapped[int] = mapped_column(
-        Integer,
+        String(10),
         nullable=False,
     )
     gstin: Mapped[str] = mapped_column(
-        String(50),
+        String(15),
         nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(
@@ -68,6 +74,10 @@ class Client(Base):
         nullable=False,
     )
 
-    user: Mapped[str] = relationship(
+    users: Mapped[list["User"]] = relationship(
         "User", back_populates="client", cascade="all, delete-orphan"
     )
+
+    @override
+    def __repr__(self) -> str:
+            return f"<Client(id={self.id}, name={self.name}, email={self.email})>"
