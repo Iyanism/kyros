@@ -1,36 +1,41 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict
 
-from domains.users.model import UserRole
+from src.domains.users.model import UserRole
 
 
 class UserCreate(BaseModel):
     client_id: UUID | None = None
-    email: EmailStr
-    password: str
+    email: str
+    password_hash: str
     full_name: str
     phone_number: str | None = None
     role: UserRole
 
 
-class UserResponse(UserCreate):
+class UserResponse(BaseModel):
     id: UUID
+    client_id: UUID | None = None
+    email: str
+    full_name: str
+    phone_number: str | None = None
+    role: UserRole
     is_active: bool
     last_login: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
+    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+
 
 class UserUpdate(BaseModel):
     client_id: UUID | None = None
-    email: EmailStr | None = None
+    email: str | None = None
     password: str | None = None
     full_name: str | None = None
     phone_number: str | None = None
     role: UserRole | None = None
     is_active: bool | None = None
     last_login: datetime | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None

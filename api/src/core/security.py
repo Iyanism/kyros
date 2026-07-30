@@ -4,8 +4,8 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHash, VerificationError
 from jose import ExpiredSignatureError, JWTError, jwt
 
-from core.logger import logger
 from src.core.config import settings
+from src.core.logger import logger
 
 ph = PasswordHasher()
 
