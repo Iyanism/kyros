@@ -1,14 +1,14 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from src.domains.users.model import UserRole
 
 
 class UserCreate(BaseModel):
     client_id: UUID | None = None
-    email: str
+    email: EmailStr
     password_hash: str
     full_name: str
     phone_number: str | None = None
@@ -18,7 +18,7 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     client_id: UUID | None = None
-    email: str
+    email: EmailStr
     full_name: str
     phone_number: str | None = None
     role: UserRole
@@ -32,7 +32,7 @@ class UserResponse(BaseModel):
 
 class UserUpdate(BaseModel):
     client_id: UUID | None = None
-    email: str | None = None
+    email: EmailStr | None = None
     password: str | None = None
     full_name: str | None = None
     phone_number: str | None = None
