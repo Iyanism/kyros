@@ -80,4 +80,4 @@ class Client(Base):
 
     @override
     def __repr__(self) -> str:
-            return f"<Client(id={self.id}, name={self.name}, email={self.email})>"
+        return f"<Client(id={self.id}, name={self.name}, email={self.email})>"

@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
+from pydantic.json_schema import ConfigDict
 from pydantic.networks import EmailStr
 
 
@@ -16,11 +17,21 @@ class ClientCreate(BaseModel):
     gstin: str | None = None
 
 
-class ClientResponse(ClientCreate):
+class ClientResponse(BaseModel):
     id: UUID
+    name: str
+    email: EmailStr
+    phone_number: str
+    address: str
+    city: str
+    state: str
+    pin_code: int
+    gstin: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 class ClientUpdate(BaseModel):
@@ -33,5 +44,3 @@ class ClientUpdate(BaseModel):
     pin_code: int | None = None
     gstin: str | None = None
     is_active: bool | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
