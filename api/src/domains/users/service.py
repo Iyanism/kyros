@@ -15,6 +15,13 @@ class UserService:
         self.db: AsyncSession = db
         self.repo: UserRepository = UserRepository(db)
 
+    async def get_by_id(self, user_id: UUID) -> UserResponse:
+        user = await self.repo.get_by_id(user_id)
+        if user is None:
+            raise Exception(f"No user with user_id {user_id} found")
+
+        return UserResponse.model_validate(user)
+
     async def create(self, user_data: UserCreate) -> UserResponse:
         existing = await self.repo.get_by_email(user_data.email)
         if existing is not None:
