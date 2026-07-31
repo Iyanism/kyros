@@ -7,7 +7,7 @@ from src.core.logger import logger
 from src.core.security import hash_password
 from src.domains.users.model import User
 from src.domains.users.repository import UserRepository
-from src.domains.users.schema import UserCreate, UserResponse
+from src.domains.users.schema import UserCreate, UserResponse, UserUpdate
 
 
 class UserService:
@@ -37,9 +37,9 @@ class UserService:
         )
         return UserResponse.model_validate(user)
 
-    async def delete(self, user_id: str) -> bool:
+    async def delete(self, user_id: UUID) -> bool:
         try:
-            result = await self.repo.delete(UUID(user_id))
+            result = await self.repo.delete(user_id)
             if result:
                 await self.db.commit()
             return result
@@ -56,3 +56,19 @@ class UserService:
             raise
         logger.info("Sending List of Users details")
         return [UserResponse.model_validate(user) for user in users]
+
+    async def update(self, user_id: UUID, update_date: UserUpdate) -> UserResponse:
+        try:
+            if update_date.password_hash:
+                update_date.password_hash = hash_password(update_date.password_hash)
+
+            user = await self.repo.update(user_id, update_date.model_dump())
+            if user is None:
+                raise Exception(f"No user with user id {user_id} found")
+            await self.db.commit()
+        except Exception as e:
+            logger.error(f"Error updating details of user with user id {user_id} and name {update_date.full_name}: {e}")
+            raise
+
+        logger.info(f"Details updated: id:{user_id} email:{user.email} role:{user.role}")
+        return UserResponse.model_validate(user)

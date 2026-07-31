@@ -33,7 +33,7 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     client_id: UUID | None = None
     email: EmailStr | None = None
-    password: str | None = None
+    password_hash: str | None = None
     full_name: str | None = None
     phone_number: str | None = None
     role: UserRole | None = None
