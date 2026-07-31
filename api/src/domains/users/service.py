@@ -10,6 +10,10 @@ from src.domains.users.repository import UserRepository
 from src.domains.users.schema import UserCreate, UserResponse, UserUpdate
 
 
+class UserNotFoundError(Exception):
+    pass
+
+
 class UserService:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
@@ -18,14 +22,14 @@ class UserService:
     async def get_by_id(self, user_id: UUID) -> UserResponse:
         user = await self.repo.get_by_id(user_id)
         if user is None:
-            raise Exception(f"No user with user_id {user_id} found")
+            raise UserNotFoundError(f"No user with user_id {user_id} found")
 
         return UserResponse.model_validate(user)
 
     async def create(self, user_data: UserCreate) -> UserResponse:
         existing = await self.repo.get_by_email(user_data.email)
         if existing is not None:
-            raise Exception("User with this email already exist.")
+            raise ValueError("User with this email already exist.")
 
         user_data.password_hash = hash_password(user_data.password_hash)
 
@@ -34,7 +38,7 @@ class UserService:
             user = await self.repo.create(user)
             await self.db.commit()
         except IntegrityError:
-            raise Exception("A user with this email already exists")
+            raise ValueError("A user with this email already exists")
         except Exception:
             logger.info("DataBase Error during creation of use")
             raise
@@ -44,23 +48,17 @@ class UserService:
         )
         return UserResponse.model_validate(user)
 
-    async def delete(self, user_id: UUID) -> bool:
-        try:
-            result = await self.repo.delete(user_id)
-            if result:
-                await self.db.commit()
-            return result
-        except Exception as e:
-            logger.error(f"Error deleting user: {str(e)}")
-            raise
+    async def delete(self, user_id: UUID) -> None:
+        deleted = await self.repo.delete(user_id)
+        if not deleted:
+            raise UserNotFoundError(f"No user with user_id {user_id} found")
+        await self.db.commit()
 
-    async def list(self) -> list[UserResponse] | None:
-        try:
-            users = await self.repo.list_all()
-            await self.db.commit()
-        except Exception as e:
-            logger.info(f"Database error during operation: {e}")
-            raise
+    async def list(self) -> list[UserResponse]:
+        users = await self.repo.list_all()
+        await self.db.commit()
+        if not users:
+            raise UserNotFoundError("No users found")
         logger.info("Sending List of Users details")
         return [UserResponse.model_validate(user) for user in users]
 
@@ -69,9 +67,9 @@ class UserService:
             if update_date.password_hash:
                 update_date.password_hash = hash_password(update_date.password_hash)
 
-            user = await self.repo.update(user_id, update_date.model_dump())
+            user = await self.repo.update(user_id, update_date.model_dump(exclude_unset=True))
             if user is None:
-                raise Exception(f"No user with user id {user_id} found")
+                raise UserNotFoundError(f"No user with user id {user_id} found")
             await self.db.commit()
         except Exception as e:
             logger.error(f"Error updating details of user with user id {user_id} and name {update_date.full_name}: {e}")

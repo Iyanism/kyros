@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.domains.users.schema import UserCreate, UserResponse, UserUpdate
-from src.domains.users.service import UserService
+from src.domains.users.service import UserNotFoundError, UserService
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -44,15 +44,15 @@ async def create_user(
 async def delete_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = UserService(db)
     try:
-        deleted = await service.delete(user_id)
-        if not deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "code": "USER NOT FOUND",
-                    "message": f"User with user_id {user_id} not found",
-                },
-            )
+        await service.delete(user_id)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "USER NOT FOUND",
+                "message": str(e),
+            },
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,15 +70,14 @@ async def get_users(db: Annotated[AsyncSession, Depends(get_db)]):
     service = UserService(db)
     try:
         users = await service.list()
-        if not users:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "code": "USERS NOT FOUND",
-                    "message": "No users where found",
-                },
-            )
-
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "USERS NOT FOUND",
+                "message": str(e),
+            },
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -95,6 +94,14 @@ async def update_user(user_id: UUID, payload: UserUpdate, db: Annotated[AsyncSes
     service = UserService(db)
     try:
         user = await service.update(user_id, payload)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "USER NOT FOUND",
+                "message": str(e),
+            },
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -111,14 +118,14 @@ async def get_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = UserService(db)
     try:
         user = await service.get_by_id(user_id)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "code": "USERS NOT FOUND",
-                    "message": "No users where found",
-                },
-            )
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "USER NOT FOUND",
+                "message": str(e),
+            },
+        ) from e
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
