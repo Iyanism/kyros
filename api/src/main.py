@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import settings
-from src.domains.clients import model as client_model  # noqa: F401 — registers Client model
+from src.domains.clients import (
+    model as client_model,  # noqa: F401 — registers Client model
+)
 from src.domains.users.router import router
 
 app = FastAPI(
