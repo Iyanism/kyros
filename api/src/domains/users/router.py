@@ -62,3 +62,29 @@ async def delete_user(user_id: str, db: Annotated[AsyncSession, Depends(get_db)]
         )
 
     return None
+
+
+@router.get("", response_model=list[UserResponse], status_code=status.HTTP_200_OK)
+async def get_users(db: Annotated[AsyncSession, Depends(get_db)]):
+    service = UserService(db)
+    try:
+        users = await service.list()
+        if not users:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "USERS NOT FOUND",
+                    "message": "No users where found",
+                },
+            )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": f"unexpected error occurred: {str(e)}",
+            },
+        )
+
+    return users

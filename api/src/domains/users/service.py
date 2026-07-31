@@ -35,7 +35,7 @@ class UserService:
         logger.info(
             "User created: id=%s email=%s role=%s", user.id, user.email, user.role
         )
-        return UserResponse.model_validate(user, from_attributes=True)
+        return UserResponse.model_validate(user)
 
     async def delete(self, user_id: str) -> bool:
         try:
@@ -46,3 +46,13 @@ class UserService:
         except Exception as e:
             logger.error(f"Error deleting user: {str(e)}")
             raise
+
+    async def list(self) -> list[UserResponse] | None:
+        try:
+            users = await self.repo.list_all()
+            await self.db.commit()
+        except Exception as e:
+            logger.info(f"Database error during operation: {e}")
+            raise
+        logger.info("Sending List of Users details")
+        return [UserResponse.model_validate(user) for user in users]
