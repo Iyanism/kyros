@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -26,7 +27,11 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         finally:
             await session.close()
 
-app.dependency_overrides[get_db] = db_session
+async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with TestAsyncSessionLocal() as session:
+        yield session
+
+app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_db():
@@ -48,7 +53,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture
 def sample_user_data():
     return {
-        "email": "pradeep@gmail.com",
+        "email": f"pradeep{uuid.uuid4().hex[:8]}@gmail.com",
         "password_hash": "1234567890",
         "full_name": "Pradeep",
         "phone_number": "9876543218",
@@ -64,7 +69,7 @@ async def created_user(client: AsyncClient, sample_user_data: dict[str, str]) ->
 @pytest.fixture
 async def another_user(client: AsyncClient) -> dict[str, str]:
     data = {
-        "email": "jane@example.com",
+        "email": f"jane{uuid.uuid4().hex[:8]}@example.com",
         "password_hash": "1234567890O",
         "full_name": "Jane",
         "phone_number": "1234567789",
