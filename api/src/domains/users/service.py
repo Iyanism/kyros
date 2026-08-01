@@ -83,3 +83,9 @@ class UserService:
             f"Details updated: id:{user_id} email:{user.email} role:{user.role}"
         )
         return UserResponse.model_validate(user)
+
+    async def deactivate(self, user_id: UUID) -> None:
+        deactivate = await self.repo.deactivate(user_id)
+        if not deactivate:
+            raise UserNotFoundError(f"No user with user id {user_id} found")
+        await self.db.commit()

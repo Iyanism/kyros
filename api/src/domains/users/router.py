@@ -140,3 +140,26 @@ async def get_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
         )
 
     return user
+
+
+@router.patch("/{user_id}/deactivate", status_code=status.HTTP_200_OK)
+async def deactivate_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
+    service = UserService(db)
+    try:
+        await service.deactivate(user_id)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "USER NOT FOUND",
+                "message": str(e),
+            },
+        ) from e
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "unexpected error occured in the server",
+            },
+        )

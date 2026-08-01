@@ -54,6 +54,14 @@ class UserRepository:
 
         return user
 
+    async def deactivate(self, user_id: UUID) -> bool:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            return False
+        user.is_active = False
+        await self.db.flush()
+        return True
+
     async def update_last_login(self, user: User) -> User:
         user.last_login = datetime.now(UTC)
         await self.db.flush()

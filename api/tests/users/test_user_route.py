@@ -70,3 +70,16 @@ class TestUserRoute:
         response = await client.delete("/users/00000000-0000-0000-0000-000000000000")
         print(response.json())
         assert response.status_code == 404
+
+    async def test_deactivate_user(
+        self, client: AsyncClient, created_user: Mapping[str, str]
+    ):
+        user_id = created_user["id"]
+        response = await client.patch(f"/users/{user_id}/deactivate")
+        assert response.status_code == 200
+
+    async def test_deactivate_user_not_found(self, client: AsyncClient):
+        response = await client.patch(
+            "/users/00000000-0000-0000-0000-000000000000/deactivate"
+        )
+        assert response.status_code == 404
