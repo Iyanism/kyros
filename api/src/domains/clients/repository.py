@@ -57,7 +57,7 @@ class ClientRepository:
     ) -> Client | None:
         client: Client | None = await self.get_by_id(client_id)
         if client is None:
-            raise Exception("Client not found")
+            return None
 
         for field, value in updated_data.items():
             setattr(client, field, value)

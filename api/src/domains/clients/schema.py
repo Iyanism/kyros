@@ -1,9 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
-from pydantic.json_schema import ConfigDict
-from pydantic.networks import EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class ClientCreate(BaseModel):
