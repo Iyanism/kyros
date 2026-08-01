@@ -12,7 +12,9 @@ from src.core.logger import logger
 from src.main import app
 
 test_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool, echo=False)
-TestAsyncSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
+TestAsyncSessionLocal = async_sessionmaker(
+    test_engine, expire_on_commit=False, class_=AsyncSession
+)
 
 
 @pytest.fixture
@@ -27,11 +29,14 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         finally:
             await session.close()
 
+
 async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
     async with TestAsyncSessionLocal() as session:
         yield session
 
+
 app.dependency_overrides[get_db] = override_get_db
+
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_db():
@@ -42,6 +47,7 @@ async def setup_db():
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
 
 @pytest.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
@@ -60,11 +66,15 @@ def sample_user_data():
         "role": "admin",
     }
 
+
 @pytest.fixture
-async def created_user(client: AsyncClient, sample_user_data: dict[str, str]) -> dict[str, str]:
+async def created_user(
+    client: AsyncClient, sample_user_data: dict[str, str]
+) -> dict[str, str]:
     response = await client.post("/users", json=sample_user_data)
     assert response.status_code == 201
     return response.json()  # pyright: ignore[reportAny]
+
 
 @pytest.fixture
 async def another_user(client: AsyncClient) -> dict[str, str]:

@@ -89,8 +89,11 @@ async def get_users(db: Annotated[AsyncSession, Depends(get_db)]):
 
     return users
 
+
 @router.patch("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def update_user(user_id: UUID, payload: UserUpdate, db: Annotated[AsyncSession, Depends(get_db)]):
+async def update_user(
+    user_id: UUID, payload: UserUpdate, db: Annotated[AsyncSession, Depends(get_db)]
+):
     service = UserService(db)
     try:
         user = await service.update(user_id, payload)
@@ -113,6 +116,7 @@ async def update_user(user_id: UUID, payload: UserUpdate, db: Annotated[AsyncSes
 
     return user
 
+
 @router.get("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def get_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = UserService(db)
@@ -131,7 +135,7 @@ async def get_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "code": "INTERNAL_ERROR",
-                "message": "unexpected error occured in the server"
+                "message": "unexpected error occured in the server",
             },
         )
 

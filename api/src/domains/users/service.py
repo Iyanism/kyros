@@ -67,13 +67,19 @@ class UserService:
             if update_date.password_hash:
                 update_date.password_hash = hash_password(update_date.password_hash)
 
-            user = await self.repo.update(user_id, update_date.model_dump(exclude_unset=True))
+            user = await self.repo.update(
+                user_id, update_date.model_dump(exclude_unset=True)
+            )
             if user is None:
                 raise UserNotFoundError(f"No user with user id {user_id} found")
             await self.db.commit()
         except Exception as e:
-            logger.error(f"Error updating details of user with user id {user_id} and name {update_date.full_name}: {e}")
+            logger.error(
+                f"Error updating details of user with user id {user_id} and name {update_date.full_name}: {e}"
+            )
             raise
 
-        logger.info(f"Details updated: id:{user_id} email:{user.email} role:{user.role}")
+        logger.info(
+            f"Details updated: id:{user_id} email:{user.email} role:{user.role}"
+        )
         return UserResponse.model_validate(user)
