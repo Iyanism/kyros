@@ -26,6 +26,12 @@ class UserService:
 
         return UserResponse.model_validate(user)
 
+    async def get_by_email(self, user_email: str) -> UserResponse:
+        user = await self.repo.get_by_email(user_email)
+        if user is None:
+            raise UserNotFoundError(f"No user with user_email {user_email} found")
+        return UserResponse.model_validate(user)
+
     async def create(self, user_data: UserCreate) -> UserResponse:
         existing = await self.repo.get_by_email(user_data.email)
         if existing is not None:
