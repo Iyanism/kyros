@@ -1,7 +1,12 @@
 
 
+from uuid import UUID
+
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
+
+from src.domains.clients.schema import ClientCreate
+from src.domains.users.model import UserRole
 
 
 class LoginRequest(BaseModel):
@@ -10,4 +15,18 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     access_token: str
-    token_type: str
+    token_type: str = "bearer"
+    user_id: UUID
+    client_id: UUID | None = None
+    email: EmailStr
+    role: UserRole
+
+class RegisterUserInfo(BaseModel):
+    email: EmailStr
+    password_hash: str
+    full_name: str
+    phone_number: str | None = None
+
+class RegistrationRequest(BaseModel):
+    client: ClientCreate
+    user: RegisterUserInfo
