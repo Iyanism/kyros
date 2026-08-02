@@ -42,7 +42,6 @@ class UserService:
         user: User = User(**user_data.model_dump())
         try:
             user = await self.repo.create(user)
-            await self.db.commit()
         except IntegrityError:
             raise ValueError("A user with this email already exists")
         except Exception:
@@ -58,11 +57,9 @@ class UserService:
         deleted = await self.repo.delete(user_id)
         if not deleted:
             raise UserNotFoundError(f"No user with user_id {user_id} found")
-        await self.db.commit()
 
     async def list(self) -> list[UserResponse]:
         users = await self.repo.list_all()
-        await self.db.commit()
         if not users:
             raise UserNotFoundError("No users found")
         logger.info("Sending List of Users details")
@@ -78,7 +75,6 @@ class UserService:
             )
             if user is None:
                 raise UserNotFoundError(f"No user with user id {user_id} found")
-            await self.db.commit()
         except Exception as e:
             logger.error(
                 f"Error updating details of user with user id {user_id} and name {update_date.full_name}: {e}"
@@ -94,8 +90,6 @@ class UserService:
         deactivate = await self.repo.deactivate(user_id)
         if not deactivate:
             raise UserNotFoundError(f"No user with user id {user_id} found")
-        await self.db.commit()
 
     async def update_last_login(self, user: UserResponse) -> None:
       await self.repo.update_last_login(**user.model_dump())
-      await self.db.commit()

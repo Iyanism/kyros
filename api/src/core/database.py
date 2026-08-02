@@ -45,6 +45,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
+            await session.commit()
         except Exception as e:
             logger.error(f"Database session error: {str(e)}", exc_info=True)
             await session.rollback()

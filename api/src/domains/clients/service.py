@@ -33,7 +33,6 @@ class ClientService:
         client: Client = Client(**client_data.model_dump())
         try:
             client = await self.repo.create(client)
-            await self.db.commit()
         except IntegrityError:
             raise ValueError("A client with this email already exists")
         except Exception:
@@ -49,17 +48,14 @@ class ClientService:
         deleted = await self.repo.delete(client_id)
         if not deleted:
             raise ClientNotFoundError(f"no client with client id {client_id} found")
-        await self.db.commit()
 
     async def deactivate(self, client_id: UUID) -> None:
         deactive = await self.repo.deactivate(client_id)
         if not deactive:
             raise ClientNotFoundError(f"no client with client id {client_id} found")
-        await self.db.commit()
 
     async def list(self) -> list[ClientResponse]:
         clients = await self.repo.list_all()
-        await self.db.commit()
         if not clients:
             raise ClientNotFoundError("No client found")
         logger.info("Sending List of Clients details")
@@ -74,7 +70,6 @@ class ClientService:
             )
             if client is None:
                 raise ClientNotFoundError(f"no client with client id {client_id} found")
-            await self.db.commit()
         except Exception as e:
             logger.error(
                 f"Error updating details of client with client id {client_id} and name {update_data.name}: {e}"
