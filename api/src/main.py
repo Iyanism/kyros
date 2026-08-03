@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import settings
-from src.domains import client_router, user_router
+from src.domains import auth_router, client_router, user_router
 from src.domains.clients import (
     model as client_model,  # noqa: F401 — registers Client model
 )
@@ -22,3 +22,4 @@ app.add_middleware(
 
 app.include_router(user_router.router)
 app.include_router(client_router.router)
+app.include_router(auth_router.router)
