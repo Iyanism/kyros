@@ -92,4 +92,7 @@ class UserService:
             raise UserNotFoundError(f"No user with user id {user_id} found")
 
     async def update_last_login(self, user: UserResponse) -> None:
-      await self.repo.update_last_login(**user.model_dump())
+        try:
+            await self.repo.update_last_login(**user.model_dump())
+        except Exception as e:
+            Exception(f"Error Updating Last Login:{e}")
