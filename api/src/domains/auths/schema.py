@@ -5,8 +5,9 @@ from uuid import UUID
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
 
-from src.domains.clients.schema import ClientCreate
+from src.domains.clients.schema import ClientCreate, ClientResponse
 from src.domains.users.model import UserRole
+from src.domains.users.schema import UserResponse
 
 
 class LoginRequest(BaseModel):
@@ -30,3 +31,8 @@ class RegisterUserInfo(BaseModel):
 class RegistrationRequest(BaseModel):
     client: ClientCreate
     user: RegisterUserInfo
+
+class RegistrationResponse(BaseModel):
+    login_info: LoginResponse
+    user: UserResponse
+    client: ClientResponse
