@@ -1,5 +1,5 @@
-from collections.abc import AsyncGenerator
 import uuid
+from collections.abc import AsyncGenerator, Mapping
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from src.core.config import settings
 from src.core.database import Base, get_db
-from src.core.logger import logger
 from src.main import app
 
 test_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool, echo=False)
@@ -17,22 +16,10 @@ TestAsyncSessionLocal = async_sessionmaker(
 )
 
 
-@pytest.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    async with TestAsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception as e:
-            logger.error(f"Database session error: {str(e)}", exc_info=True)
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
-
-
 async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
     async with TestAsyncSessionLocal() as session:
-        yield session
+            yield session
+            await session.commit()
 
 
 app.dependency_overrides[get_db] = override_get_db
@@ -66,6 +53,19 @@ def sample_user_data():
         "role": "admin",
     }
 
+@pytest.fixture
+def sample_client_data():
+    return {
+            "name": "Nivia",
+            "email": f"nivia{uuid.uuid4().hex[:8]}@example.com",
+            "phone_number": "9745321897",
+            "address": "41 Industrial Area",
+            "city": "Pune",
+            "state": "Maharashtra",
+            "pin_code": "411001",
+            "gstin": "27AABCA1234F5GB",
+        }
+
 
 @pytest.fixture
 async def created_user(
@@ -88,3 +88,9 @@ async def another_user(client: AsyncClient) -> dict[str, str]:
     response = await client.post("/users", json=data)
     assert response.status_code == 201
     return response.json()  # pyright: ignore[reportAny]
+
+@pytest.fixture
+async def created_client(client: AsyncClient, sample_client_data: Mapping[str, str]):
+    response = await client.post("/clients", json=sample_client_data)
+    assert response.status_code == 201
+    return response.json()
