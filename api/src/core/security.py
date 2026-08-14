@@ -20,7 +20,7 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hash_password: str) -> bool:
     try:
-        return ph.verify(password, hash_password)
+        return ph.verify(hash_password, password)
 
     except VerificationError:
         logger.warning("Invalid password attempt")
