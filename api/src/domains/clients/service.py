@@ -1,4 +1,4 @@
-from sqlite3.dbapi2 import IntegrityError
+from sqlalchemy.exc import IntegrityError
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
