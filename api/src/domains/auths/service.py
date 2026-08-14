@@ -45,7 +45,7 @@ class AuthService:
 
     async def login(self, login_data: LoginRequest) -> LoginResponse:
         user = await self.authenticate(login_data)
-        await self.user_service.update_last_login(user)
+        await self.user_service.update_last_login(user.id)
         access_token = await self.create_tokens(user)
         logger.info("Login success: email=%s user_id=%s", login_data.email, user.id)
         return LoginResponse(

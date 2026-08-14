@@ -91,8 +91,8 @@ class UserService:
         if not deactivate:
             raise UserNotFoundError(f"No user with user id {user_id} found")
 
-    async def update_last_login(self, user: UserResponse) -> None:
+    async def update_last_login(self, user_id: UUID) -> None:
         try:
-            await self.repo.update_last_login(**user.model_dump())
+            await self.repo.update_last_login(user_id)
         except Exception as e:
-            Exception(f"Error Updating Last Login:{e}")
+            logger.error(f"Error updating last login for user {user_id}: {e}")

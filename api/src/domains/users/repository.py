@@ -62,7 +62,10 @@ class UserRepository:
         await self.db.flush()
         return True
 
-    async def update_last_login(self, user: User) -> None:
+    async def update_last_login(self, user_id: UUID) -> None:
+        user = await self.get_by_id(user_id)
+        if user is None:
+            return
         user.last_login = datetime.now(UTC)
         await self.db.flush()
         await self.db.refresh(user)
