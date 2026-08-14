@@ -5,10 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
+from src.core.dependencies import get_current_user
 from src.domains.users.schema import UserCreate, UserResponse, UserUpdate
 from src.domains.users.service import UserNotFoundError, UserService
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(
+    prefix="/users",
+    tags=["Users"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
