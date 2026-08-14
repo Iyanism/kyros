@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, override
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,7 +50,7 @@ class Client(Base):
         nullable=False,
     )
     pin_code: Mapped[int] = mapped_column(
-        String(10),
+        Integer,
         nullable=False,
     )
     gstin: Mapped[str] = mapped_column(
