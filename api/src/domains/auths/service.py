@@ -61,12 +61,13 @@ class AuthService:
 
     async def register(self, register_data: RegistrationRequest):
         client = await self.client_service.create(register_data.client)
+        plaintext_password = register_data.user.password_hash
         user_data = UserCreate(**register_data.user.model_dump(), client_id=client.id, role=UserRole.CLIENT)
         user = await self.user_service.create(user_data)
         logger.info("Authentication in progress...")
         login = await self.login(login_data=LoginRequest(
             email=user_data.email,
-            password=user_data.password_hash,
+            password=plaintext_password,
         ))
         return RegistrationResponse(
             login_info=login,
