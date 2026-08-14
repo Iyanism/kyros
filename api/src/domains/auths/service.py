@@ -1,6 +1,4 @@
 
-from multiprocessing import AuthenticationError
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logger import logger
@@ -17,6 +15,10 @@ from src.domains.users.schema import UserCreate, UserResponse
 from src.domains.users.service import UserService
 
 
+class AuthenticationError(Exception):
+    pass
+
+
 class AuthService:
 
     def __init__(self, db: AsyncSession):
@@ -25,13 +27,13 @@ class AuthService:
 
     async def authenticate(self, login_data: LoginRequest) -> UserResponse:
         user = await self.user_service.get_by_email(login_data.email)
-        if not user and not verify_password(login_data.password, user.password_hash):
+        if not verify_password(login_data.password, user.password_hash):
             logger.warning(f"Login failed for email:{login_data.email}, invalid credentials")
             raise AuthenticationError("Invalid email or password")
 
         if not user.is_active:
             logger.warning(f"Account with email:{login_data.email} is disabled or blocked")
-            raise AuthenticationError("User accound is blocked or deactivated`")
+            raise AuthenticationError("User account is blocked or deactivated")
         return UserResponse.model_validate(user)
 
     async def create_tokens(self, user: UserResponse) -> str:

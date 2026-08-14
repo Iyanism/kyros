@@ -1,5 +1,4 @@
 
-from multiprocessing import AuthenticationError
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,7 +11,7 @@ from src.domains.auths.schema import (
     RegistrationRequest,
     RegistrationResponse,
 )
-from src.domains.auths.service import AuthService
+from src.domains.auths.service import AuthenticationError, AuthService
 
 router = APIRouter(
     prefix="/auth",
