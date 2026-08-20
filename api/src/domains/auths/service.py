@@ -1,4 +1,3 @@
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logger import logger
@@ -20,7 +19,6 @@ class AuthenticationError(Exception):
 
 
 class AuthService:
-
     def __init__(self, db: AsyncSession):
         self.user_service = UserService(db)
         self.client_service = ClientService(db)
@@ -28,20 +26,26 @@ class AuthService:
     async def authenticate(self, login_data: LoginRequest) -> UserResponse:
         user = await self.user_service.get_by_email(login_data.email)
         if not verify_password(login_data.password, user.password_hash):
-            logger.warning(f"Login failed for email:{login_data.email}, invalid credentials")
+            logger.warning(
+                f"Login failed for email:{login_data.email}, invalid credentials"
+            )
             raise AuthenticationError("Invalid email or password")
 
         if not user.is_active:
-            logger.warning(f"Account with email:{login_data.email} is disabled or blocked")
+            logger.warning(
+                f"Account with email:{login_data.email} is disabled or blocked"
+            )
             raise AuthenticationError("User account is blocked or deactivated")
         return UserResponse.model_validate(user)
 
     async def create_tokens(self, user: UserResponse) -> str:
-        access_token = create_access_token(data={
-            "sub": str(user.id),
-            "client_id": str(user.client_id) if user.client_id else None,
-            "role": str(user.role),
-        })
+        access_token = create_access_token(
+            data={
+                "sub": str(user.id),
+                "client_id": str(user.client_id) if user.client_id else None,
+                "role": str(user.role),
+            }
+        )
 
         return access_token
 
@@ -62,15 +66,15 @@ class AuthService:
     async def register(self, register_data: RegistrationRequest):
         client = await self.client_service.create(register_data.client)
         plaintext_password = register_data.user.password_hash
-        user_data = UserCreate(**register_data.user.model_dump(), client_id=client.id, role=UserRole.CLIENT)
+        user_data = UserCreate(
+            **register_data.user.model_dump(), client_id=client.id, role=UserRole.CLIENT
+        )
         user = await self.user_service.create(user_data)
         logger.info("Authentication in progress...")
-        login = await self.login(login_data=LoginRequest(
-            email=user_data.email,
-            password=plaintext_password,
-        ))
-        return RegistrationResponse(
-            login_info=login,
-            user=user,
-            client=client
+        login = await self.login(
+            login_data=LoginRequest(
+                email=user_data.email,
+                password=plaintext_password,
+            )
         )
+        return RegistrationResponse(login_info=login, user=user, client=client)

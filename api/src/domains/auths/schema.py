@@ -1,5 +1,3 @@
-
-
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -14,6 +12,7 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -22,15 +21,18 @@ class LoginResponse(BaseModel):
     email: EmailStr
     role: UserRole
 
+
 class RegisterUserInfo(BaseModel):
     email: EmailStr
     password_hash: str
     full_name: str
     phone_number: str | None = None
 
+
 class RegistrationRequest(BaseModel):
     client: ClientCreate
     user: RegisterUserInfo
+
 
 class RegistrationResponse(BaseModel):
     login_info: LoginResponse
