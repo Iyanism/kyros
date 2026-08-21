@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from typing_extensions import Mapping
 
 from src.domains.warehouse.model import Chamber, Rack, Slot
@@ -14,6 +15,24 @@ class ChamberRepository:
 
     async def get_by_id(self, chamber_id: UUID) -> Chamber | None:
         return await self.db.get(Chamber, chamber_id)
+
+    async def get_with_racks(self, chamber_id: UUID) -> Chamber | None:
+        stmt = (
+            select(Chamber)
+            .where(Chamber.id == chamber_id)
+            .options(selectinload(Chamber.racks))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_with_details(self, chamber_id: UUID) -> Chamber | None:
+        stmt = (
+            select(Chamber)
+            .where(Chamber.id == chamber_id)
+            .options(selectinload(Chamber.racks).selectinload(Rack.slots))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_by_chamber_code(self, chamber_code: str) -> Chamber | None:
         stmt = select(Chamber).where(Chamber.code == chamber_code)
@@ -28,6 +47,15 @@ class ChamberRepository:
 
     async def list_all(self) -> Sequence[Chamber]:
         stmt = select(Chamber).order_by(Chamber.created_at)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
+    async def list_all_with_racks(self) -> Sequence[Chamber]:
+        stmt = (
+            select(Chamber)
+            .options(selectinload(Chamber.racks))
+            .order_by(Chamber.created_at)
+        )
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
@@ -61,6 +89,22 @@ class RackRepository:
     async def get_by_id(self, rack_id: UUID) -> Rack | None:
         return await self.db.get(Rack, rack_id)
 
+    async def get_with_slots(self, rack_id: UUID) -> Rack | None:
+        stmt = (
+            select(Rack)
+            .where(Rack.id == rack_id)
+            .options(selectinload(Rack.slots), selectinload(Rack.chamber))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_with_chamber(self, rack_id: UUID) -> Rack | None:
+        stmt = (
+            select(Rack).where(Rack.id == rack_id).options(selectinload(Rack.chamber))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_rack_number(
         self, chamber_id: UUID, rack_number: str
     ) -> Rack | None:
@@ -87,6 +131,23 @@ class RackRepository:
         )
         result = await self.db.execute(stmt)
         return result.scalars().all()
+
+    async def list_by_chamber_with_details(self, chamber_id: UUID) -> Sequence[Rack]:
+        stmt = (
+            select(Rack)
+            .where(Rack.chamber_id == chamber_id)
+            .options(selectinload(Rack.slots), selectinload(Rack.chamber))
+            .order_by(Rack.created_at)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
+    async def count_by_chamber(self, chamber_id: UUID) -> int:
+        stmt = (
+            select(func.count()).select_from(Rack).where(Rack.chamber_id == chamber_id)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
 
     async def delete(self, rack_id: UUID) -> bool:
         rack = await self.get_by_id(rack_id)
@@ -118,6 +179,15 @@ class SlotRepository:
     async def get_by_id(self, slot_id: UUID) -> Slot | None:
         return await self.db.get(Slot, slot_id)
 
+    async def get_with_rack(self, slot_id: UUID) -> Slot | None:
+        stmt = (
+            select(Slot)
+            .where(Slot.id == slot_id)
+            .options(selectinload(Slot.rack).selectinload(Rack.chamber))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_slot_number(self, rack_id: UUID, slot_number: str) -> Slot | None:
         stmt = select(Slot).where(
             Slot.rack_id == rack_id, Slot.slot_number == slot_number
@@ -138,6 +208,16 @@ class SlotRepository:
 
     async def list_by_rack(self, rack_id: UUID) -> Sequence[Slot]:
         stmt = select(Slot).where(Slot.rack_id == rack_id).order_by(Slot.created_at)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
+    async def list_by_rack_with_details(self, rack_id: UUID) -> Sequence[Slot]:
+        stmt = (
+            select(Slot)
+            .where(Slot.rack_id == rack_id)
+            .options(selectinload(Slot.rack).selectinload(Rack.chamber))
+            .order_by(Slot.created_at)
+        )
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
@@ -162,3 +242,37 @@ class SlotRepository:
         await self.db.refresh(slot)
 
         return slot
+
+    async def count_by_rack(self, rack_id: UUID) -> int:
+        stmt = select(func.count()).select_from(Slot).where(Slot.rack_id == rack_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def total_occupied_slots(self, rack_id: UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Slot)
+            .where(Slot.rack_id == rack_id, Slot.is_occupied.is_(True))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def count_by_chamber(self, chamber_id: UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Slot)
+            .join(Rack, Slot.rack_id == Rack.id)
+            .where(Rack.chamber_id == chamber_id)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def count_occupied_by_chamber(self, chamber_id: UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Slot)
+            .join(Rack, Slot.rack_id == Rack.id)
+            .where(Rack.chamber_id == chamber_id, Slot.is_occupied.is_(True))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
