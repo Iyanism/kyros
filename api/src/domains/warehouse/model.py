@@ -9,12 +9,13 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
-    Integer,
     String,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -64,12 +65,8 @@ class Chamber(Base):
         Enum(ChamberCategory),
         nullable=False,
     )
-    temperature: Mapped[str] = mapped_column(
-        String(6),
-        nullable=False,
-    )
-    capacity: Mapped[int] = mapped_column(
-        Integer,
+    temperature: Mapped[float] = mapped_column(
+        Float,
         nullable=False,
     )
     status: Mapped[ChamberStatus] = mapped_column(
@@ -96,6 +93,8 @@ class Chamber(Base):
     @property
     def is_active(self) -> bool:
         return self.status == ChamberStatus.ACTIVE
+
+    # total_capacity / used_capacity are derived: total_slots * 1 MT
 
     @override
     def __repr__(self) -> str:
@@ -149,6 +148,12 @@ class Rack(Base):
         back_populates="rack", cascade="all, delete-orphan"
     )
 
+    @hybrid_property
+    def full_code(self) -> str:
+        # Computed, not stored: e.g. CH1-R02
+        code = self.chamber.code if self.chamber else str(self.chamber_id)
+        return f"{code}-{self.rack_number}"
+
     @override
     def __repr__(self) -> str:
         return (
@@ -180,11 +185,6 @@ class Slot(Base):
         nullable=False,
         index=True,
     )
-    capacity: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=1,
-    )
     is_occupied: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -208,6 +208,18 @@ class Slot(Base):
     )
 
     rack: Mapped[Rack] = relationship(back_populates="slots")
+
+    @hybrid_property
+    def full_code(self) -> str:
+        # Computed address, not stored: e.g. CH1-R02-S45
+        # Avoids duplication and rename cascades.
+        if self.rack and self.rack.chamber:
+            return (
+                f"{self.rack.chamber.code}-{self.rack.rack_number}-{self.slot_number}"
+            )
+        if self.rack:
+            return f"{self.rack.rack_number}-{self.slot_number}"
+        return str(self.slot_number)
 
     @override
     def __repr__(self) -> str:
