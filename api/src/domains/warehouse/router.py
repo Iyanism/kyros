@@ -79,7 +79,9 @@ async def create_chamber(
         ) from e
 
 
-@router.get("/chambers", response_model=list[ChamberResponse], status_code=status.HTTP_200_OK)
+@router.get(
+    "/chambers", response_model=list[ChamberResponse], status_code=status.HTTP_200_OK
+)
 async def list_chambers(db: Annotated[AsyncSession, Depends(get_db)]):
     service = WarehouseService(db)
     try:
@@ -100,7 +102,11 @@ async def list_chambers(db: Annotated[AsyncSession, Depends(get_db)]):
         ) from e
 
 
-@router.get("/chambers/{chamber_id}", response_model=ChamberResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/chambers/{chamber_id}",
+    response_model=ChamberResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def get_chamber(chamber_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = WarehouseService(db)
     try:
@@ -153,7 +159,11 @@ async def delete_chamber(
     return None
 
 
-@router.get("/chambers/{chamber_id}/racks", response_model=list[RackResponse], status_code=status.HTTP_200_OK)
+@router.get(
+    "/chambers/{chamber_id}/racks",
+    response_model=list[RackResponse],
+    status_code=status.HTTP_200_OK,
+)
 async def list_racks(chamber_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = WarehouseService(db)
     try:
@@ -174,7 +184,9 @@ async def list_racks(chamber_id: UUID, db: Annotated[AsyncSession, Depends(get_d
         ) from e
 
 
-@router.get("/racks/{rack_id}", response_model=RackResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/racks/{rack_id}", response_model=RackResponse, status_code=status.HTTP_200_OK
+)
 async def get_rack(rack_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = WarehouseService(db)
     try:
@@ -265,7 +277,11 @@ async def delete_rack(rack_id: UUID, db: Annotated[AsyncSession, Depends(get_db)
     return None
 
 
-@router.get("/racks/{rack_id}/slots", response_model=list[SlotResponse], status_code=status.HTTP_200_OK)
+@router.get(
+    "/racks/{rack_id}/slots",
+    response_model=list[SlotResponse],
+    status_code=status.HTTP_200_OK,
+)
 async def list_slots(rack_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = WarehouseService(db)
     try:
@@ -286,7 +302,9 @@ async def list_slots(rack_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
         ) from e
 
 
-@router.get("/slots/{slot_id}", response_model=SlotResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/slots/{slot_id}", response_model=SlotResponse, status_code=status.HTTP_200_OK
+)
 async def get_slot(slot_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     service = WarehouseService(db)
     try:
