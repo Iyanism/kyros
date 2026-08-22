@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from typing import Any
 
 from httpx import AsyncClient
 
@@ -30,7 +31,7 @@ class TestClientRoute:
     ):
         response = await authed_client.get("/clients")
         assert response.status_code == 200
-        data = response.json()
+        data: Mapping[str, Any] = response.json()
         assert isinstance(data, list)
         assert len(data) >= 1
 

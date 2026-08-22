@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Mapping
+from typing import Any
 
 from httpx import AsyncClient
 
@@ -10,7 +11,7 @@ class TestUserRoute:
     ):
         response = await authed_client.post("/users", json=sample_user_data)
         assert response.status_code == 201
-        data = response.json()
+        data: Mapping[str, Any] = response.json()
         assert data["email"] == sample_user_data["email"]
         assert data["full_name"] == sample_user_data["full_name"]
         assert data["phone_number"] == sample_user_data["phone_number"]
@@ -23,13 +24,13 @@ class TestUserRoute:
     ):
         response = await authed_client.post("/users", json=sample_user_data)
         assert response.status_code == 400
-        data = response.json()
+        data: Mapping[str, Any] = response.json()
         assert data["detail"]["code"] == "VALIDATION_ERROR"
 
     async def test_get_users(self, authed_client: AsyncClient):
         response = await authed_client.get("/users")
         assert response.status_code == 200
-        data = response.json()
+        data: Mapping[str, Any] = response.json()
         assert isinstance(data, list)
         assert len(data) >= 1
 
