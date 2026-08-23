@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { LoginResponse, UserRole } from "@/types/auth";
+import type { LoginResponse, UserResponse, UserRole } from "@/types/auth";
+import { getCurrentUser } from "@/lib/api/auth";
 
 const ACCESS_TOKEN_KEY = "kyros.access_token";
 
@@ -16,6 +17,7 @@ interface AuthState {
   isAuthenticated: boolean;
   setSession: (payload: LoginResponse) => void;
   clearSession: () => void;
+  restoreSession: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -38,5 +40,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearSession: () => {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     set({ accessToken: null, user: null, isAuthenticated: false });
+  },
+  restoreSession: async (): Promise<void> => {
+    const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (accessToken) {
+      try {
+        const userResponse: UserResponse = await getCurrentUser();
+        set({
+          accessToken,
+          user: {
+            id: userResponse.id,
+            email: userResponse.email,
+            role: userResponse.role,
+            clientId: userResponse.client_id,
+          },
+          isAuthenticated: true,
+        });
+      } catch (error) {
+        console.error("Failed to restore session:", error);
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        set({ accessToken: null, user: null, isAuthenticated: false });
+      }
+    }
   },
 }));
