@@ -12,7 +12,7 @@ export const companySchema = z.object({
   address: z.string().min(3, "Street address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
-  pin_code: z.string().regex(/^\d{6}$/, "PIN code must be exactly 6 digits"),
+  pin_code: z.number().min(100000, "Enter a valid 6 digit pin code").max(999999, "Enter a valid 6 digit pin code"),
   gstin: z.string().optional(),
 });
 
@@ -20,10 +20,10 @@ export const accountSchema = z.object({
   full_name: z.string().min(2, "Full name is required"),
   phone_number: z.string().optional(),
   email: z.email("Enter a valid login email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password_hash: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export const registerSchema = z.object({
-  company: companySchema,
-  account: accountSchema,
+  client: companySchema,
+  user: accountSchema,
 });

@@ -1,30 +1,31 @@
 import { useState, type SubmitEventHandler } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight, ChevronLeft, Mail } from "lucide-react";
 
 import { KyrosLogo } from "@/components/shared/logo";
 import { AuthFooter } from "@/components/auth/auth-footer";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
-import { login } from "@/lib/api/auth";
 import { getApiErrorMessage } from "@/lib/api/client";
-import { useAuthStore } from "@/store/authStore";
 import type { LoginRequest } from "@/types/auth";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 export function LoginForm() {
-  const setSession = useAuthStore((s) => s.setSession);
+  const { login } = useAuth();
   const [loginForm, setLoginForm] = useState<LoginRequest>({ email: "", password: "" });
+  const navigate = useNavigate()
 
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
     try {
-      const response = await login(loginForm);
-      setSession(response);
+      await login(loginForm);
+      navigate('/dashboard');
     } catch (err) {
       toast.error(getApiErrorMessage(err));
     }
@@ -32,6 +33,11 @@ export function LoginForm() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-[#fbfcfe] px-7 py-8 sm:px-12 sm:py-10 lg:px-14 lg:py-11">
+      <div className="">
+        <Link to="/" className={cn(buttonVariants({ variant: "outline", size: "default" }))}>
+            <ChevronLeft/> Go Back
+          </Link>
+      </div>
       <div className="flex items-center justify-between text-[11px] font-medium text-[#8792a3]">
         <span className="lg:hidden">
           <KyrosLogo dark />

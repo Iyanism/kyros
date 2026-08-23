@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   ArrowRight,
   Building2,
+  ChevronLeft,
   IdCard,
   Mail,
   MapPin,
@@ -12,7 +12,7 @@ import {
   User,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField } from "@/components/ui/form-field";
 import { FormSectionHeader } from "@/components/ui/form-section";
@@ -20,27 +20,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthFooter } from "@/components/auth/auth-footer";
-import { register } from "@/lib/api/auth";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { registerSchema } from "@/lib/validators/auth";
+import { cn } from "@/lib/utils";
+import type { RegisterUserInfo} from "@/types/auth";
+import type { ClientCreate } from "@/types/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export function RegistrationForm() {
   const navigate = useNavigate();
-  const [company, setCompany] = useState({
+  const { register } = useAuth()
+  const [company, setCompany] = useState<ClientCreate>({
     name: "",
     email: "",
     phone_number: "",
     address: "",
     city: "",
     state: "",
-    pin_code: "",
+    pin_code: 0,
     gstin: "",
   });
-  const [account, setAccount] = useState({
+  const [account, setAccount] = useState<RegisterUserInfo>({
     full_name: "",
     phone_number: "",
     email: "",
-    password: "",
+    password_hash: "",
   });
 
   const handleSubmit = async (e: FormEvent) => {
@@ -53,25 +57,8 @@ export function RegistrationForm() {
     }
 
     try {
-      await register({
-        client: {
-          name: parsed.data.company.name,
-          email: parsed.data.company.email,
-          phone_number: parsed.data.company.phone_number,
-          address: parsed.data.company.address,
-          city: parsed.data.company.city,
-          state: parsed.data.company.state,
-          pin_code: Number(parsed.data.company.pin_code),
-          gstin: parsed.data.company.gstin || null,
-        },
-        user: {
-          email: parsed.data.account.email,
-          password_hash: parsed.data.account.password,
-          full_name: parsed.data.account.full_name,
-          phone_number: parsed.data.account.phone_number || null,
-        },
-      });
-      navigate("/login");
+      await register(parsed.data)
+      navigate("/dashboard");
     } catch (err) {
       toast.error(getApiErrorMessage(err));
     }
@@ -79,14 +66,10 @@ export function RegistrationForm() {
 
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-[#fbfcfe] px-6 py-6 sm:px-10 sm:py-8 lg:px-12 lg:py-8">
-      <div className="flex shrink-0 items-center justify-between text-[11px] font-medium text-[#8792a3]">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="group inline-flex items-center gap-1.5 transition hover:text-primary"
-        >
-          <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" /> Back to login
-        </button>
+      <div className="flex shrink-0 items-center justify-between text-[11px] font-medium">
+        <Link to="/" className={cn(buttonVariants({ variant: "outline", size: "default" }))}>
+          <ChevronLeft /> Go Back
+        </Link>
         <span className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-[#56657d] sm:block">
           Step 1 of 2
         </span>
@@ -174,9 +157,15 @@ export function RegistrationForm() {
                 <FormField label="PIN code" htmlFor="company-pin">
                   <Input
                     id="company-pin"
+                    type="number"
                     placeholder="781001"
-                    value={company.pin_code}
-                    onChange={(e) => setCompany({ ...company, pin_code: e.target.value })}
+                    value={company.pin_code || ""}
+                    onChange={(e) =>
+                      setCompany({
+                        ...company,
+                        pin_code: e.target.value ? Number(e.target.value) : 0,
+                      })
+                    }
                   />
                 </FormField>
               </div>
@@ -186,7 +175,7 @@ export function RegistrationForm() {
                   id="company-gstin"
                   leftIcon={<IdCard className="h-4 w-4" />}
                   placeholder="18AAAAA0000A1Z5"
-                  value={company.gstin}
+                  value={company.gstin ?? ""}
                   onChange={(e) => setCompany({ ...company, gstin: e.target.value })}
                 />
               </FormField>
@@ -213,7 +202,7 @@ export function RegistrationForm() {
                     type="tel"
                     leftIcon={<Phone className="h-4 w-4" />}
                     placeholder="+91 98765 43210"
-                    value={account.phone_number}
+                    value={account.phone_number ?? ""}
                     onChange={(e) => setAccount({ ...account, phone_number: e.target.value })}
                   />
                 </FormField>
@@ -238,8 +227,8 @@ export function RegistrationForm() {
                 <PasswordInput
                   id="account-password"
                   placeholder="At least 8 characters"
-                  value={account.password}
-                  onChange={(e) => setAccount({ ...account, password: e.target.value })}
+                  value={account.password_hash}
+                  onChange={(e) => setAccount({ ...account, password_hash: e.target.value })}
                 />
               </FormField>
             </div>
@@ -248,13 +237,13 @@ export function RegistrationForm() {
               <Checkbox id="terms" />
               <Label htmlFor="terms" className="text-[11px] font-normal leading-4 text-[#66748a]">
                 I agree to the{" "}
-                <button type="button" className="font-semibold text-primary hover:text-primary-hover">
+                <Link to={"#termsofservice"} type="button" className="font-semibold text-primary hover:text-primary-hover">
                   Terms of Service
-                </button>{" "}
+                </Link>{" "}
                 and{" "}
-                <button type="button" className="font-semibold text-primary hover:text-primary-hover">
+                <Link to={"#privacypolicy"} type="button" className="font-semibold text-primary hover:text-primary-hover">
                   Privacy Policy
-                </button>
+                </Link>
               </Label>
             </div>
 
@@ -266,9 +255,9 @@ export function RegistrationForm() {
 
           <div className="mt-4 border-t border-[#e7ebf2] pt-4 text-center text-[11px] text-[#8994a5]">
             Already have an account?{" "}
-            <button type="button" onClick={() => navigate("/")} className="font-semibold text-primary hover:text-primary-hover">
+            <Link to={"/login"} className="font-semibold text-primary hover:text-primary-hover">
               Sign in
-            </button>
+            </Link>
           </div>
         </div>
       </div>
