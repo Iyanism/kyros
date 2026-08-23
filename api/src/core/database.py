@@ -41,6 +41,20 @@ class Base(DeclarativeBase):
     pass
 
 
+async def init_db() -> None:
+    """Create all tables registered on Base.metadata (dev convenience).
+
+    Requires model modules to be imported first — use
+    `import src.domains.models` before calling. Prefer Alembic migrations
+    in staging/production.
+    """
+    import src.domains.models  # noqa: F401 — registers all models  # pyright: ignore[reportUnusedImport]
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created")
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
