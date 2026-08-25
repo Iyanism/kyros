@@ -60,3 +60,11 @@ class SlotResponse(BaseModel):
     updated_at: datetime
 
     model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+
+
+class RackDetailResponse(RackResponse):
+    slots: list[SlotResponse] = []
+
+
+class ChamberDetailResponse(ChamberResponse):
+    racks: list[RackDetailResponse] = []
