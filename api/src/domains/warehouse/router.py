@@ -9,6 +9,7 @@ from src.core.dependencies import get_current_user
 from src.core.logger import logger
 from src.domains.warehouse.schema import (
     ChamberCreate,
+    ChamberDetailResponse,
     ChamberResponse,
     RackResponse,
     SlotResponse,
@@ -28,7 +29,9 @@ router = APIRouter(
 
 
 @router.post(
-    "/chambers", response_model=ChamberResponse, status_code=status.HTTP_201_CREATED
+    "/chamber",
+    response_model=ChamberDetailResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_chamber(
     payload: ChamberCreate, db: Annotated[AsyncSession, Depends(get_db)]
@@ -118,6 +121,33 @@ async def get_chamber(chamber_id: UUID, db: Annotated[AsyncSession, Depends(get_
         ) from e
     except Exception as e:
         logger.error(f"Unexpected error fetching chamber {chamber_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "Something went wrong. Please try again later.",
+            },
+        ) from e
+
+
+@router.get(
+    "/chambers/{chamber_id}/detail",
+    response_model=ChamberDetailResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_chamber_detail(
+    chamber_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+):
+    service = WarehouseService(db)
+    try:
+        return await service.get_chamber_detail(chamber_id)
+    except WarehouseNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
+    except Exception as e:
+        logger.error(f"Unexpected error fetching chamber detail {chamber_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
