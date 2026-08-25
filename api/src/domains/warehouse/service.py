@@ -12,7 +12,9 @@ from src.domains.warehouse.repository import (
 )
 from src.domains.warehouse.schema import (
     ChamberCreate,
+    ChamberDetailResponse,
     ChamberResponse,
+    RackDetailResponse,
     RackResponse,
     SlotResponse,
 )
@@ -37,7 +39,9 @@ class WarehouseService:
         self.rack_repo = RackRepository(db)
         self.slot_repo = SlotRepository(db)
 
-    async def create_chamber(self, chamber_data: ChamberCreate) -> ChamberResponse:
+    async def create_chamber(
+        self, chamber_data: ChamberCreate
+    ) -> ChamberDetailResponse:
         existing = await self.chamber_repo.get_by_chamber_code(chamber_data.code)
         if existing is not None:
             raise WarehouseDuplicateError("Chamber with this code already exists")
@@ -48,6 +52,7 @@ class WarehouseService:
             category=chamber_data.category,
             temperature=chamber_data.temperature,
         )
+        rack_details: list[RackDetailResponse] = []
         try:
             chamber = await self.chamber_repo.create(chamber)
             for i in range(1, chamber_data.num_racks + 1):
@@ -56,6 +61,7 @@ class WarehouseService:
                     rack_number=f"R{i:02d}",
                 )
                 rack = await self.rack_repo.create(rack)
+                slot_responses: list[SlotResponse] = []
                 for j in range(1, chamber_data.slots_per_rack + 1):
                     slot = Slot(
                         rack_id=rack.id,
@@ -63,6 +69,38 @@ class WarehouseService:
                         is_occupied=False,
                     )
                     slot = await self.slot_repo.create(slot)
+                    slot_responses.append(self._to_slot_response(slot))
+                # fresh creates have no loaded relationships — compute full_code directly
+                rack_full_code = f"{chamber.code}-{rack.rack_number}"
+                slot_responses = [
+                    SlotResponse(
+                        id=s.id,
+                        rack_id=s.rack_id,
+                        slot_number=s.slot_number,
+                        full_code=f"{rack_full_code}-{s.slot_number}",
+                        occupancy=s.occupancy,
+                        is_occupied=s.is_occupied,
+                        allocated_client_id=s.allocated_client_id,
+                        quantity=s.quantity,
+                        created_at=s.created_at,
+                        updated_at=s.updated_at,
+                    )
+                    for s in slot_responses
+                ]
+                rack_details.append(
+                    RackDetailResponse(
+                        id=rack.id,
+                        chamber_id=rack.chamber_id,
+                        rack_number=rack.rack_number,
+                        full_code=rack_full_code,
+                        slot_count=len(slot_responses),
+                        occupied_count=0,
+                        status=rack.status,
+                        created_at=rack.created_at,
+                        updated_at=rack.updated_at,
+                        slots=slot_responses,
+                    )
+                )
         except IntegrityError as e:
             logger.error(f"Integrity error creating chamber {chamber_data.code}: {e}")
             raise WarehouseDuplicateError(
@@ -79,7 +117,7 @@ class WarehouseService:
             f"category={chamber.category} temperature={chamber.temperature} "
             f"with {chamber_data.num_racks} racks and {total_slots} slots"
         )
-        return ChamberResponse(
+        return ChamberDetailResponse(
             id=chamber.id,
             name=chamber.name,
             code=chamber.code,
@@ -92,6 +130,7 @@ class WarehouseService:
             used_capacity=0.0,
             created_at=chamber.created_at,
             updated_at=chamber.updated_at,
+            racks=rack_details,
         )
 
     async def get_chamber(self, chamber_id: UUID) -> ChamberResponse:
@@ -116,6 +155,49 @@ class WarehouseService:
             used_capacity=float(total_occupied),
             created_at=chamber.created_at,
             updated_at=chamber.updated_at,
+        )
+
+    async def get_chamber_detail(self, chamber_id: UUID) -> ChamberDetailResponse:
+        chamber = await self.chamber_repo.get_with_details(chamber_id)
+        if chamber is None:
+            raise WarehouseNotFoundError("Chamber not found")
+
+        total_slots = 0
+        total_occupied = 0
+        rack_details: list[RackDetailResponse] = []
+        for rack in chamber.racks:
+            occupied = sum(1 for s in rack.slots if s.is_occupied)
+            total_slots += len(rack.slots)
+            total_occupied += occupied
+            rack_details.append(
+                RackDetailResponse(
+                    id=rack.id,
+                    chamber_id=rack.chamber_id,
+                    rack_number=rack.rack_number,
+                    full_code=rack.full_code,
+                    slot_count=len(rack.slots),
+                    occupied_count=occupied,
+                    status=rack.status,
+                    created_at=rack.created_at,
+                    updated_at=rack.updated_at,
+                    slots=[self._to_slot_response(s) for s in rack.slots],
+                )
+            )
+
+        return ChamberDetailResponse(
+            id=chamber.id,
+            name=chamber.name,
+            code=chamber.code,
+            category=chamber.category,
+            temperature=chamber.temperature,
+            status=chamber.status,
+            total_racks=len(rack_details),
+            total_slots=total_slots,
+            total_capacity=float(total_slots),
+            used_capacity=float(total_occupied),
+            created_at=chamber.created_at,
+            updated_at=chamber.updated_at,
+            racks=rack_details,
         )
 
     async def delete_chamber(self, chamber_id: UUID) -> None:
