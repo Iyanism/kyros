@@ -101,6 +101,48 @@ class TestWarehouseRoute:
         resp = await authed_client.post("/warehouses/chambers", json=payload)
         assert resp.status_code == 422
 
+    async def test_create_chamber_returns_nested_tree(
+        self, authed_client: AsyncClient
+    ) -> None:
+        payload = _chamber_payload()
+        resp = await authed_client.post("/warehouses/chambers", json=payload)
+        assert resp.status_code == 201
+        body: dict[str, Any] = resp.json()
+        racks: list[dict[str, Any]] = body["racks"]
+        assert len(racks) == payload["num_racks"]
+        first: dict[str, Any] = racks[0]
+        assert len(first["slots"]) == payload["slots_per_rack"]
+        slot: dict[str, Any] = first["slots"][0]
+        assert slot["occupancy"] == "empty"
+        # full codes are computed server-side: CHxx-R01-S01
+        assert (
+            slot["full_code"]
+            == f"{body['code']}-{first['rack_number']}-{slot['slot_number']}"
+        )
+
+    async def test_get_chamber_detail(self, authed_client: AsyncClient) -> None:
+        created = await _create_chamber(authed_client)
+        chamber_id: str = created["id"]
+        resp = await authed_client.get(f"/warehouses/chambers/{chamber_id}/detail")
+        assert resp.status_code == 200
+        body: dict[str, Any] = resp.json()
+        assert body["id"] == chamber_id
+        racks: list[dict[str, Any]] = body["racks"]
+        assert len(racks) == body["total_racks"]
+        total_slots = sum(len(r["slots"]) for r in racks)
+        assert total_slots == body["total_slots"]
+        assert all(slot["is_occupied"] is False for r in racks for slot in r["slots"])
+
+    async def test_get_chamber_detail_not_found(
+        self, authed_client: AsyncClient
+    ) -> None:
+        resp = await authed_client.get(
+            "/warehouses/chambers/00000000-0000-0000-0000-000000000000/detail"
+        )
+        assert resp.status_code == 404
+        detail: dict[str, Any] = resp.json()["detail"]
+        assert detail["code"] == "NOT_FOUND"
+
     async def test_list_chambers(self, authed_client: AsyncClient) -> None:
         await _create_chamber(authed_client)
         resp = await authed_client.get("/warehouses/chambers")
