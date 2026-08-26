@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
+from src.domains.clients.schema import ClientResponse
 from src.domains.users.model import UserRole
 
 
@@ -29,6 +30,8 @@ class UserResponse(BaseModel):
 
     model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
 
+class UserClientResponse(UserResponse):
+    client: ClientResponse | None = None
 
 class UserUpdate(BaseModel):
     client_id: UUID | None = None

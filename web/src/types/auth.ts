@@ -1,6 +1,5 @@
 import type { ClientCreate, ClientResponse } from "./client";
-
-export type UserRole = "admin" | "operator" | "client";
+import type { UserResponse, UserRole } from "./user";
 
 export interface LoginRequest {
   email: string;
@@ -26,19 +25,6 @@ export interface RegisterUserInfo {
 export interface RegistrationRequest {
   client: ClientCreate;
   user: RegisterUserInfo;
-}
-
-export interface UserResponse {
-  id: string;
-  client_id: string | null;
-  email: string;
-  full_name: string;
-  phone_number: string | null;
-  role: UserRole;
-  is_active: boolean;
-  last_login: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface RegistrationResponse {
