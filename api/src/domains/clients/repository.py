@@ -31,16 +31,16 @@ class ClientRepository:
 
         return result.scalars().all()
 
-    async def deactivate(self, client_id: UUID) -> bool:
+    async def toggle_status(self, client_id: UUID) -> Client | None:
         client: Client | None = await self.get_by_id(client_id)
         if client is None:
-            return False
+            return None
 
-        client.is_active = False
+        client.is_active = not client.is_active
         await self.db.flush()
         await self.db.refresh(client)
 
-        return True
+        return client
 
     async def delete(self, client_id: UUID) -> bool:
         client: Client | None = await self.get_by_id(client_id)

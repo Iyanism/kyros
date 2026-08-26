@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from src.domains.users.model import User
 
@@ -24,11 +25,11 @@ class UserRepository:
     async def create(self, user_data: User) -> User:
         self.db.add(user_data)
         await self.db.flush()
-        await self.db.refresh(user_data)
+        await self.db.refresh(user_data, attribute_names=["client"], with_for_update=False)
         return user_data
 
     async def list_all(self) -> Sequence[User]:
-        stmt = select(User).order_by(User.created_at.desc())
+        stmt = select(User).options(joinedload(User.client)).order_by(User.created_at.desc())
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
@@ -54,13 +55,14 @@ class UserRepository:
 
         return user
 
-    async def deactivate(self, user_id: UUID) -> bool:
+    async def toggle_status(self, user_id: UUID) -> User | None:
         user = await self.get_by_id(user_id)
         if user is None:
-            return False
-        user.is_active = False
+            return None
+        user.is_active = not user.is_active
         await self.db.flush()
-        return True
+        await self.db.refresh(user, attribute_names=["client"], with_for_update=False)
+        return user
 
     async def update_last_login(self, user_id: UUID) -> None:
         user = await self.get_by_id(user_id)

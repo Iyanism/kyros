@@ -7,7 +7,12 @@ from src.core.logger import logger
 from src.core.security import hash_password
 from src.domains.users.model import User
 from src.domains.users.repository import UserRepository
-from src.domains.users.schema import UserCreate, UserResponse, UserUpdate
+from src.domains.users.schema import (
+    UserClientResponse,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 
 
 class UserNotFoundError(Exception):
@@ -32,7 +37,7 @@ class UserService:
             raise UserNotFoundError(f"No user with user_email {user_email} found")
         return user
 
-    async def create(self, user_data: UserCreate) -> UserResponse:
+    async def create(self, user_data: UserCreate) -> UserClientResponse:
         existing = await self.repo.get_by_email(user_data.email)
         if existing is not None:
             raise ValueError("User with this email already exist.")
@@ -51,19 +56,19 @@ class UserService:
         logger.info(
             "User created: id=%s email=%s role=%s", user.id, user.email, user.role
         )
-        return UserResponse.model_validate(user)
+        return UserClientResponse.model_validate(user)
 
     async def delete(self, user_id: UUID) -> None:
         deleted = await self.repo.delete(user_id)
         if not deleted:
             raise UserNotFoundError(f"No user with user_id {user_id} found")
 
-    async def list(self) -> list[UserResponse]:
+    async def list(self) -> list[UserClientResponse]:
         users = await self.repo.list_all()
         if not users:
             raise UserNotFoundError("No users found")
         logger.info("Sending List of Users details")
-        return [UserResponse.model_validate(user) for user in users]
+        return [UserClientResponse.model_validate(user) for user in users]
 
     async def update(self, user_id: UUID, update_date: UserUpdate) -> UserResponse:
         try:
@@ -86,10 +91,18 @@ class UserService:
         )
         return UserResponse.model_validate(user)
 
-    async def deactivate(self, user_id: UUID) -> None:
-        deactivate = await self.repo.deactivate(user_id)
-        if not deactivate:
+    async def toggle_status(self, user_id: UUID) -> UserClientResponse:
+        user = await self.repo.toggle_status(user_id)
+        if user is None:
             raise UserNotFoundError(f"No user with user id {user_id} found")
+
+        logger.info(
+            "User status toggled: id=%s email=%s is_active=%s",
+            user.id,
+            user.email,
+            user.is_active,
+        )
+        return UserClientResponse.model_validate(user)
 
     async def update_last_login(self, user_id: UUID) -> None:
         try:

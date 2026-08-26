@@ -1,6 +1,6 @@
-from sqlalchemy.exc import IntegrityError
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logger import logger
@@ -49,10 +49,13 @@ class ClientService:
         if not deleted:
             raise ClientNotFoundError(f"no client with client id {client_id} found")
 
-    async def deactivate(self, client_id: UUID) -> None:
-        deactive = await self.repo.deactivate(client_id)
-        if not deactive:
+    async def toggle_status(self, client_id: UUID) -> ClientResponse:
+        client = await self.repo.toggle_status(client_id)
+        if client is None:
             raise ClientNotFoundError(f"no client with client id {client_id} found")
+
+        logger.info(f"Client deactivated: id: {client.id} name:{client.name} email: {client.email}")
+        return ClientResponse.model_validate(client)
 
     async def list(self) -> list[ClientResponse]:
         clients = await self.repo.list_all()
