@@ -1,10 +1,10 @@
-import { apiClient } from "./client";
+import type { UserResponse } from "@/types/user";
+import { apiClient } from "./apiClient";
 import type {
   LoginRequest,
   LoginResponse,
   RegistrationRequest,
   RegistrationResponse,
-  UserResponse,
 } from "@/types/auth";
 
 export async function login_user(payload: LoginRequest): Promise<LoginResponse> {

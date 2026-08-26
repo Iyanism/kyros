@@ -1,35 +1,22 @@
-import axios from "axios";
-import { env } from "@/config/env";
+import type { ClientCreate, ClientResponse } from "@/types/client";
+import { apiClient } from "./apiClient";
 
-export interface ApiError {
-  code: string;
-  message: string;
-  field?: string;
+
+export async function get_clients(): Promise<ClientResponse[]>{
+    const { data } = await apiClient.get<ClientResponse[]>("/clients")
+    return data
 }
 
-export const apiClient = axios.create({
-  baseURL: env.apiUrl,
-  headers: { "Content-Type": "application/json" },
-});
+export async function create_client(payload: ClientCreate): Promise<ClientResponse> {
+    const { data } = await apiClient.post<ClientResponse>("/clients", payload)
+    return data
+}
 
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("kyros.access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+export async function toggle_client_status(client_id: string): Promise<ClientResponse> {
+    const { data } = await apiClient.patch<ClientResponse>(`/clients/${client_id}/status`)
+    return data
+}
 
-export function getApiErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const detail = error.response?.data?.detail;
-    if (detail && typeof detail === "object" && typeof detail.message === "string") {
-      return detail.message;
-    }
-    if (typeof detail === "string") {
-      return detail;
-    }
-    return error.message;
-  }
-  return "Something went wrong. Please try again.";
+export async function delete_client(client_id: string): Promise<void> {
+    await apiClient.delete(`/clients/${client_id}`)
 }
