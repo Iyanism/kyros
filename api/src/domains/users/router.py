@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.dependencies import get_current_user
-from src.domains.users.schema import UserCreate, UserResponse, UserUpdate
+from src.domains.users.schema import (
+    UserClientResponse,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 from src.domains.users.service import UserNotFoundError, UserService
 
 router = APIRouter(
@@ -16,7 +21,7 @@ router = APIRouter(
 )
 
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserClientResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     payload: UserCreate, db: Annotated[AsyncSession, Depends(get_db)]
 ):
@@ -70,7 +75,7 @@ async def delete_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)
     return None
 
 
-@router.get("", response_model=list[UserResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[UserClientResponse], status_code=status.HTTP_200_OK)
 async def get_users(db: Annotated[AsyncSession, Depends(get_db)]):
     service = UserService(db)
     try:
@@ -147,11 +152,17 @@ async def get_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     return user
 
 
-@router.patch("/{user_id}/deactivate", status_code=status.HTTP_200_OK)
-async def deactivate_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
+@router.patch(
+    "/{user_id}/status",
+    response_model=UserClientResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def toggle_user_status(
+    user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+):
     service = UserService(db)
     try:
-        await service.deactivate(user_id)
+        return await service.toggle_status(user_id)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

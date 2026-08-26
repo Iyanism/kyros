@@ -69,13 +69,13 @@ async def delete_client(client_id: UUID, db: Annotated[AsyncSession, Depends(get
     return None
 
 
-@router.patch("/{client_id}/deactivate", status_code=status.HTTP_200_OK)
-async def deactivate_client(
+@router.patch("/{client_id}/status", response_model=ClientResponse, status_code=status.HTTP_200_OK)
+async def toggle_client_status(
     client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ):
     service = ClientService(db)
     try:
-        await service.deactivate(client_id)
+        client = await service.toggle_status(client_id)
     except ClientNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -93,7 +93,7 @@ async def deactivate_client(
             },
         )
 
-    return None
+    return client
 
 
 @router.get("", response_model=list[ClientResponse], status_code=status.HTTP_200_OK)
