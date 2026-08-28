@@ -49,9 +49,25 @@ export interface AlertItem {
 
 export interface VolumePoint {
   day: string;
-  height: string;
-  val: string;
+  orders: number;
+  height?: string;
+  val?: string;
 }
+
+export interface RevenuePoint {
+  month: string;
+  revenue: number;
+  formattedRevenue: string;
+}
+
+export const REVENUE_BY_MONTH: RevenuePoint[] = [
+  { month: "Mar", revenue: 8.5, formattedRevenue: "₹8.50L" },
+  { month: "Apr", revenue: 10.2, formattedRevenue: "₹10.20L" },
+  { month: "May", revenue: 11.8, formattedRevenue: "₹11.80L" },
+  { month: "Jun", revenue: 13.4, formattedRevenue: "₹13.40L" },
+  { month: "Jul", revenue: 14.2, formattedRevenue: "₹14.20L" },
+  { month: "Aug", revenue: 14.82, formattedRevenue: "₹14.82L" },
+];
 
 export const KPIS: Kpi[] = [
   {
@@ -115,11 +131,11 @@ export const SYSTEM_ALERTS: AlertItem[] = [
 ];
 
 export const VOLUME_BY_DAY: VolumePoint[] = [
-  { day: "Mon", height: "45%", val: "24" },
-  { day: "Tue", height: "65%", val: "38" },
-  { day: "Wed", height: "85%", val: "52" },
-  { day: "Thu", height: "55%", val: "31" },
-  { day: "Fri", height: "95%", val: "64" },
-  { day: "Sat", height: "70%", val: "42" },
-  { day: "Sun", height: "35%", val: "18" },
+  { day: "Mon", orders: 24, height: "45%", val: "24" },
+  { day: "Tue", orders: 38, height: "65%", val: "38" },
+  { day: "Wed", orders: 52, height: "85%", val: "52" },
+  { day: "Thu", orders: 31, height: "55%", val: "31" },
+  { day: "Fri", orders: 64, height: "95%", val: "64" },
+  { day: "Sat", orders: 42, height: "70%", val: "42" },
+  { day: "Sun", orders: 18, height: "35%", val: "18" },
 ];

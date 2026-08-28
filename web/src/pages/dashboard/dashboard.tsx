@@ -25,7 +25,7 @@ export function Dashboard() {
       <main className="flex-1 lg:ml-65 min-w-0">
         <DashboardHeader
           title="Dashboard Overview"
-          subtitle="Operational & Financial Health · Real-time Execution"
+          subtitle="Operational & Financial Health · Management Overview"
         />
 
         <div className="p-6 lg:p-8 space-y-6">
@@ -44,7 +44,7 @@ export function Dashboard() {
                   <h3 className="font-display text-[16px] font-semibold text-[#0f172a]">Chamber Capacity & Temperature Status</h3>
                   <span className="rounded-md bg-[#f1f5f9] px-2 py-0.5 text-[10px] font-semibold text-[#475569]">{CHAMBER_SUMMARIES.length} Rooms Active</span>
                 </div>
-                <p className="text-[12px] text-[#64748b]">Physical storage utilization and real-time environment status</p>
+                <p className="text-[12px] text-[#64748b]">Physical storage utilization and environment status</p>
               </div>
               <div className="flex items-center gap-4 text-[11px]">
                 <span className="flex items-center gap-1.5 font-medium text-[#475569]">
@@ -75,14 +75,14 @@ export function Dashboard() {
             <VolumeGraph />
           </div>
 
-          {/* Live Activity & System Alerts */}
+          {/* Warehouse Activity & System Alerts */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             <div className="lg:col-span-7 rounded-[16px] border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2">
                     <Activity className="h-5 w-5 text-[#2457e6]" />
-                    <h3 className="font-display text-[16px] font-semibold text-[#0f172a]">Live Warehouse Activity</h3>
+                    <h3 className="font-display text-[16px] font-semibold text-[#0f172a]">Warehouse Activity</h3>
                   </div>
                   <button className="text-[12px] font-semibold text-[#2457e6] hover:text-[#1d4ed8]">View Audit Trail</button>
                 </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   BarChart3,
   Building2,
@@ -9,7 +9,6 @@ import {
   Menu,
   Package,
   Settings,
-  Snowflake,
   Truck,
   Users,
   Warehouse,
@@ -17,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { KyrosLogo } from "@/components/shared/logo";
 import { useAuth } from "@/hooks/useAuth";
 import type { AuthUser } from "@/store/authStore";
 
@@ -93,14 +93,9 @@ function SidebarNav({ items }: { items: SidebarNavItem[] }) {
 
 export function BrandHeader() {
   return (
-    <div className="flex h-16 items-center gap-3 px-6 border-b border-[#e2e8f0]">
-      <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#2457e6] text-white shadow-[0_4px_12px_rgba(36,87,230,0.25)]">
-        <Snowflake className="h-5 w-5" strokeWidth={2.4} />
-      </span>
-      <span className="font-display text-[21px] font-semibold tracking-[-0.055em] text-[#11203a]">
-        kyros
-      </span>
-      <span className="ml-auto rounded-md bg-[#eef2ff] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#2457e6]">
+    <div className="flex h-16 items-center justify-between px-6 border-b border-[#e2e8f0]">
+      <KyrosLogo dark />
+      <span className="rounded-md bg-[#eef2ff] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#2457e6]">
         v2.0
       </span>
     </div>
@@ -109,6 +104,13 @@ export function BrandHeader() {
 
 export function SidebarUserCard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    void logout()
+    navigate("/")
+  }
+
   return (
     <div className="mt-auto border-t border-[#e2e8f0] p-4 bg-[#f1f5f9]/50">
       <div className="flex items-center gap-3 rounded-[12px] border border-[#e2e8f0] bg-white p-2.5 shadow-sm">
@@ -126,7 +128,7 @@ export function SidebarUserCard() {
         <button
           type="button"
           aria-label="Log out"
-          onClick={() => void logout()}
+          onClick={handleLogout}
           className="text-[#94a3b8] hover:text-[#ef4444] transition-colors p-1.5 rounded-md hover:bg-[#f1f5f9]"
         >
           <LogOut className="h-4 w-4" />
@@ -176,14 +178,7 @@ function MobileSidebar({
         }`}
       >
         <div className="flex h-16 items-center justify-between px-6 border-b border-[#e2e8f0]">
-          <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#2457e6] text-white">
-              <Snowflake className="h-4 w-4" strokeWidth={2.4} />
-            </span>
-            <span className="font-display text-[20px] font-semibold tracking-[-0.055em] text-[#11203a]">
-              kyros
-            </span>
-          </div>
+          <KyrosLogo dark />
           <button
             type="button"
             onClick={onClose}
@@ -207,10 +202,12 @@ function MobileSidebar({
 export function DashboardHeader({
   title,
   subtitle,
+  actions,
   children,
 }: {
   title: string;
   subtitle?: string;
+  actions?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -237,7 +234,12 @@ export function DashboardHeader({
             )}
           </div>
         </div>
-        {children && <div className="flex items-center gap-3">{children}</div>}
+        {(actions || children) && (
+          <div className="flex items-center gap-3">
+            {actions}
+            {children}
+          </div>
+        )}
       </header>
     </>
   );
