@@ -11,7 +11,7 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
-import { getApiErrorMessage } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/apiClient";
 import type { LoginRequest } from "@/types/auth";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";

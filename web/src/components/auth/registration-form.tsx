@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthFooter } from "@/components/auth/auth-footer";
-import { getApiErrorMessage } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/apiClient";
 import { registerSchema } from "@/lib/validators/auth";
 import { cn } from "@/lib/utils";
 import type { RegisterUserInfo} from "@/types/auth";
@@ -30,7 +30,7 @@ import { useAuth } from "@/hooks/useAuth";
 export function RegistrationForm() {
   const navigate = useNavigate();
   const { register } = useAuth()
-  const [company, setCompany] = useState<ClientCreate>({
+  const [client, setClient] = useState<ClientCreate>({
     name: "",
     email: "",
     phone_number: "",
@@ -40,7 +40,7 @@ export function RegistrationForm() {
     pin_code: 0,
     gstin: "",
   });
-  const [account, setAccount] = useState<RegisterUserInfo>({
+  const [user, setUser] = useState<RegisterUserInfo>({
     full_name: "",
     phone_number: "",
     email: "",
@@ -50,7 +50,7 @@ export function RegistrationForm() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    const parsed = registerSchema.safeParse({ company, account });
+    const parsed = registerSchema.safeParse({ client, user });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Please fix the highlighted fields.");
       return;
@@ -96,8 +96,8 @@ export function RegistrationForm() {
                   id="company-name"
                   leftIcon={<Building2 className="h-4 w-4" />}
                   placeholder="Meridian Foods Pvt. Ltd."
-                  value={company.name}
-                  onChange={(e) => setCompany({ ...company, name: e.target.value })}
+                  value={client.name}
+                  onChange={(e) => setClient({ ...client, name: e.target.value })}
                 />
               </FormField>
 
@@ -108,8 +108,8 @@ export function RegistrationForm() {
                     type="email"
                     leftIcon={<Mail className="h-4 w-4" />}
                     placeholder="ops@meridianfoods.in"
-                    value={company.email}
-                    onChange={(e) => setCompany({ ...company, email: e.target.value })}
+                    value={client.email}
+                    onChange={(e) => setClient({ ...client, email: e.target.value })}
                   />
                 </FormField>
 
@@ -119,8 +119,8 @@ export function RegistrationForm() {
                     type="tel"
                     leftIcon={<Phone className="h-4 w-4" />}
                     placeholder="+91 98765 43210"
-                    value={company.phone_number}
-                    onChange={(e) => setCompany({ ...company, phone_number: e.target.value })}
+                    value={client.phone_number}
+                    onChange={(e) => setClient({ ...client, phone_number: e.target.value })}
                   />
                 </FormField>
               </div>
@@ -130,8 +130,8 @@ export function RegistrationForm() {
                   id="company-address"
                   leftIcon={<MapPin className="h-4 w-4" />}
                   placeholder="4th Floor, Fancy Bazaar Road"
-                  value={company.address}
-                  onChange={(e) => setCompany({ ...company, address: e.target.value })}
+                  value={client.address}
+                  onChange={(e) => setClient({ ...client, address: e.target.value })}
                 />
               </FormField>
 
@@ -140,8 +140,8 @@ export function RegistrationForm() {
                   <Input
                     id="company-city"
                     placeholder="Guwahati"
-                    value={company.city}
-                    onChange={(e) => setCompany({ ...company, city: e.target.value })}
+                    value={client.city}
+                    onChange={(e) => setClient({ ...client, city: e.target.value })}
                   />
                 </FormField>
 
@@ -149,8 +149,8 @@ export function RegistrationForm() {
                   <Input
                     id="company-state"
                     placeholder="Assam"
-                    value={company.state}
-                    onChange={(e) => setCompany({ ...company, state: e.target.value })}
+                    value={client.state}
+                    onChange={(e) => setClient({ ...client, state: e.target.value })}
                   />
                 </FormField>
 
@@ -159,10 +159,10 @@ export function RegistrationForm() {
                     id="company-pin"
                     type="number"
                     placeholder="781001"
-                    value={company.pin_code || ""}
+                    value={client.pin_code || ""}
                     onChange={(e) =>
-                      setCompany({
-                        ...company,
+                      setClient({
+                        ...client,
                         pin_code: e.target.value ? Number(e.target.value) : 0,
                       })
                     }
@@ -175,8 +175,8 @@ export function RegistrationForm() {
                   id="company-gstin"
                   leftIcon={<IdCard className="h-4 w-4" />}
                   placeholder="18AAAAA0000A1Z5"
-                  value={company.gstin ?? ""}
-                  onChange={(e) => setCompany({ ...company, gstin: e.target.value })}
+                  value={client.gstin ?? ""}
+                  onChange={(e) => setClient({ ...client, gstin: e.target.value })}
                 />
               </FormField>
             </div>
@@ -191,8 +191,8 @@ export function RegistrationForm() {
                     id="account-name"
                     leftIcon={<User className="h-4 w-4" />}
                     placeholder="Alesia Rahman"
-                    value={account.full_name}
-                    onChange={(e) => setAccount({ ...account, full_name: e.target.value })}
+                    value={user.full_name}
+                    onChange={(e) => setUser({ ...user, full_name: e.target.value })}
                   />
                 </FormField>
 
@@ -202,8 +202,8 @@ export function RegistrationForm() {
                     type="tel"
                     leftIcon={<Phone className="h-4 w-4" />}
                     placeholder="+91 98765 43210"
-                    value={account.phone_number ?? ""}
-                    onChange={(e) => setAccount({ ...account, phone_number: e.target.value })}
+                    value={user.phone_number ?? ""}
+                    onChange={(e) => setUser({ ...user, phone_number: e.target.value })}
                   />
                 </FormField>
               </div>
@@ -218,8 +218,8 @@ export function RegistrationForm() {
                   type="email"
                   leftIcon={<Mail className="h-4 w-4" />}
                   placeholder="alesia@meridianfoods.in"
-                  value={account.email}
-                  onChange={(e) => setAccount({ ...account, email: e.target.value })}
+                  value={user.email}
+                  onChange={(e) => setUser({ ...user, email: e.target.value })}
                 />
               </FormField>
 
@@ -227,8 +227,8 @@ export function RegistrationForm() {
                 <PasswordInput
                   id="account-password"
                   placeholder="At least 8 characters"
-                  value={account.password_hash}
-                  onChange={(e) => setAccount({ ...account, password_hash: e.target.value })}
+                  value={user.password_hash}
+                  onChange={(e) => setUser({ ...user, password_hash: e.target.value })}
                 />
               </FormField>
             </div>
