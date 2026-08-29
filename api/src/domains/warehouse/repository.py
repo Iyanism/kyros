@@ -221,6 +221,21 @@ class SlotRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def list_available_slots(
+        self, chamber_id: UUID | None = None
+    ) -> Sequence[Slot]:
+        stmt = (
+            select(Slot)
+            .join(Rack, Slot.rack_id == Rack.id)
+            .where(Slot.is_occupied.is_(False))
+            .options(selectinload(Slot.rack).selectinload(Rack.chamber))
+            .order_by(Rack.chamber_id, Slot.slot_number)
+        )
+        if chamber_id is not None:
+            stmt = stmt.where(Rack.chamber_id == chamber_id)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
     async def delete(self, slot_id: UUID) -> bool:
         slot = await self.get_by_id(slot_id)
         if slot is None:
