@@ -68,12 +68,12 @@ class TestClientRoute:
         self, authed_client: AsyncClient, created_client: Mapping[str, str]
     ):
         client_id = created_client["id"]
-        response = await authed_client.patch(f"/clients/{client_id}/deactivate")
+        response = await authed_client.patch(f"/clients/{client_id}/status")
         assert response.status_code == 200
 
     async def test_deactivate_client_not_found(self, authed_client: AsyncClient):
         response = await authed_client.patch(
-            "/clients/00000000-0000-0000-0000-000000000000/deactivate"
+            "/clients/00000000-0000-0000-0000-000000000000/status"
         )
         assert response.status_code == 404
 

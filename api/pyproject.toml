@@ -1,7 +1,7 @@
 [project]
 name = "api"
 version = "0.1.0"
-description = "Cold storage backend written in Fastapi"
+description = "Cold storage backend written in FastAPI"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [

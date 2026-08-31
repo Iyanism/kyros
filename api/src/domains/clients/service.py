@@ -54,7 +54,9 @@ class ClientService:
         if client is None:
             raise ClientNotFoundError(f"no client with client id {client_id} found")
 
-        logger.info(f"Client deactivated: id: {client.id} name:{client.name} email: {client.email}")
+        logger.info(
+            f"Client deactivated: id: {client.id} name:{client.name} email: {client.email}"
+        )
         return ClientResponse.model_validate(client)
 
     async def list(self) -> list[ClientResponse]:

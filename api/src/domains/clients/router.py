@@ -69,7 +69,9 @@ async def delete_client(client_id: UUID, db: Annotated[AsyncSession, Depends(get
     return None
 
 
-@router.patch("/{client_id}/status", response_model=ClientResponse, status_code=status.HTTP_200_OK)
+@router.patch(
+    "/{client_id}/status", response_model=ClientResponse, status_code=status.HTTP_200_OK
+)
 async def toggle_client_status(
     client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
 ):

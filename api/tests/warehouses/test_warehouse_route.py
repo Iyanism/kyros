@@ -26,7 +26,7 @@ async def _create_chamber(
     authed_client: AsyncClient, payload: dict[str, str | float | int] | None = None
 ) -> dict[str, Any]:
     body = payload or _chamber_payload()
-    resp = await authed_client.post("/warehouses/chambers", json=body)
+    resp = await authed_client.post("/warehouses/chamber", json=body)
     assert resp.status_code == 201, resp.text
     data: dict[str, Any] = resp.json()
     return data
@@ -65,7 +65,7 @@ class TestWarehouseRoute:
 
     async def test_create_chamber(self, authed_client: AsyncClient) -> None:
         payload = _chamber_payload()
-        resp = await authed_client.post("/warehouses/chambers", json=payload)
+        resp = await authed_client.post("/warehouses/chamber", json=payload)
         assert resp.status_code == 201
         body: dict[str, Any] = resp.json()
         assert body["code"] == payload["code"]
@@ -82,7 +82,7 @@ class TestWarehouseRoute:
     ) -> None:
         payload = _chamber_payload()
         await _create_chamber(authed_client, payload)
-        resp = await authed_client.post("/warehouses/chambers", json=payload)
+        resp = await authed_client.post("/warehouses/chamber", json=payload)
         assert resp.status_code == 409
         detail: dict[str, Any] = resp.json()["detail"]
         assert detail["code"] == "ALREADY_EXISTS"
@@ -92,20 +92,20 @@ class TestWarehouseRoute:
     ) -> None:
         payload = _chamber_payload()
         payload["category"] = "banana"
-        resp = await authed_client.post("/warehouses/chambers", json=payload)
+        resp = await authed_client.post("/warehouses/chamber", json=payload)
         assert resp.status_code == 422
 
     async def test_create_chamber_zero_racks(self, authed_client: AsyncClient) -> None:
         payload = _chamber_payload()
         payload["num_racks"] = 0
-        resp = await authed_client.post("/warehouses/chambers", json=payload)
+        resp = await authed_client.post("/warehouses/chamber", json=payload)
         assert resp.status_code == 422
 
     async def test_create_chamber_returns_nested_tree(
         self, authed_client: AsyncClient
     ) -> None:
         payload = _chamber_payload()
-        resp = await authed_client.post("/warehouses/chambers", json=payload)
+        resp = await authed_client.post("/warehouses/chamber", json=payload)
         assert resp.status_code == 201
         body: dict[str, Any] = resp.json()
         racks: list[dict[str, Any]] = body["racks"]

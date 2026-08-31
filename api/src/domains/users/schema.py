@@ -30,8 +30,10 @@ class UserResponse(BaseModel):
 
     model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
 
+
 class UserClientResponse(UserResponse):
     client: ClientResponse | None = None
+
 
 class UserUpdate(BaseModel):
     client_id: UUID | None = None

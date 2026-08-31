@@ -25,11 +25,17 @@ class UserRepository:
     async def create(self, user_data: User) -> User:
         self.db.add(user_data)
         await self.db.flush()
-        await self.db.refresh(user_data, attribute_names=["client"], with_for_update=False)
+        await self.db.refresh(
+            user_data, attribute_names=["client"], with_for_update=False
+        )
         return user_data
 
     async def list_all(self) -> Sequence[User]:
-        stmt = select(User).options(joinedload(User.client)).order_by(User.created_at.desc())
+        stmt = (
+            select(User)
+            .options(joinedload(User.client))
+            .order_by(User.created_at.desc())
+        )
         result = await self.db.execute(stmt)
         return result.scalars().all()
 

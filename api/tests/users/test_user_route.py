@@ -80,12 +80,12 @@ class TestUserRoute:
         self, authed_client: AsyncClient, created_user: Mapping[str, str]
     ):
         user_id = created_user["id"]
-        response = await authed_client.patch(f"/users/{user_id}/deactivate")
+        response = await authed_client.patch(f"/users/{user_id}/status")
         assert response.status_code == 200
 
     async def test_deactivate_user_not_found(self, authed_client: AsyncClient):
         response = await authed_client.patch(
-            "/users/00000000-0000-0000-0000-000000000000/deactivate"
+            "/users/00000000-0000-0000-0000-000000000000/status"
         )
         assert response.status_code == 404
 
@@ -123,7 +123,7 @@ class TestUserRoute:
         user_id = registration.json()["user"]["id"]
         headers = {"Authorization": f"Bearer {token}"}
 
-        deactivate = await client.patch(f"/users/{user_id}/deactivate", headers=headers)
+        deactivate = await client.patch(f"/users/{user_id}/status", headers=headers)
         assert deactivate.status_code == 200
 
         response = await client.get("/users", headers=headers)
