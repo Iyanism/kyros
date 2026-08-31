@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.core.database import Base
 
 if TYPE_CHECKING:
+    from src.domains.orders.model import InboundOrder
     from src.domains.users.model import User
 
 
@@ -76,6 +77,10 @@ class Client(Base):
 
     users: Mapped[list["User"]] = relationship(
         "User", back_populates="client", cascade="all, delete-orphan"
+    )
+
+    inbound_orders: Mapped[list["InboundOrder"]] = relationship(
+        "InboundOrder", back_populates="client"
     )
 
     @override
