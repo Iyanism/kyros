@@ -5,33 +5,61 @@ import { Register } from "@/pages/auth/register";
 import { Dashboard } from "@/pages/dashboard/dashboard";
 import { Chamber } from "@/pages/dashboard/chamber";
 import { NotFound } from "@/pages/not-found";
-import { useAuthStore } from "./store/authStore";
-import { Users } from "./pages/dashboard/users";
-import { Clients } from "./pages/dashboard/clients";
+import { useAuthStore, isSessionValid } from "@/store/authStore";
+import { Users } from "@/pages/dashboard/users";
+import { Clients } from "@/pages/dashboard/clients";
+import { Inbound } from "@/pages/dashboard/inbound";
+import { ErrorBoundaryPage } from "@/pages/error-boundary";
+import type { UserRole } from "@/types/user";
 
-const redirectToDashboard = async () => {
-  const isAuthenticated = useAuthStore.getState().isAuthenticated;
-  
-  if (isAuthenticated) {
-    throw redirect("/dashboard");
-  }
-}
-
-const protectedRoute = async () => {
-  const isAuthenticated = useAuthStore.getState().isAuthenticated
-  
-  if (!isAuthenticated) {
+function requireAuth() {
+  if (!isSessionValid()) {
     throw redirect("/login");
   }
 }
 
+function requireRoles(...allowed: UserRole[]) {
+  requireAuth();
+  const { user, hasRole } = useAuthStore.getState();
+  if (!user || !hasRole(allowed)) {
+    throw redirect("/dashboard");
+  }
+}
+
+const redirectIfAuthenticated = () => {
+  if (isSessionValid()) {
+    throw redirect("/dashboard");
+  }
+};
+
+const protectedLoader = () => {
+  requireAuth();
+};
+
+const adminLoader = () => {
+  requireRoles("admin");
+};
+
+const staffLoader = () => {
+  requireRoles("admin", "operator");
+};
+
 export const router = createBrowserRouter([
-  { path: "/", element: <Landing />},
-  { path: "/login", element: <Login />, loader: redirectToDashboard },
-  { path: "/register", element: <Register />, loader: redirectToDashboard },
-  { path: "/dashboard", element: <Dashboard />, loader: protectedRoute },
-  { path: "/chamber", element: <Chamber />, loader: protectedRoute },
-  { path: "/users", element: <Users/>, loader: protectedRoute },
-  { path: "/clients", element: <Clients/>, loader: protectedRoute },
-  { path: "*", element: <NotFound /> },
+  {
+    ErrorBoundary: ErrorBoundaryPage,
+    children: [
+      { path: "/", element: <Landing /> },
+      { path: "/login", element: <Login />, loader: redirectIfAuthenticated },
+      { path: "/register", element: <Register />, loader: redirectIfAuthenticated },
+
+      { path: "/dashboard", element: <Dashboard />, loader: protectedLoader },
+      { path: "/chamber", element: <Chamber />, loader: protectedLoader },
+      { path: "/inbound", element: <Inbound />, loader: staffLoader },
+
+      { path: "/users", element: <Users />, loader: adminLoader },
+      { path: "/clients", element: <Clients />, loader: adminLoader },
+
+      { path: "*", element: <NotFound /> },
+    ],
+  },
 ]);

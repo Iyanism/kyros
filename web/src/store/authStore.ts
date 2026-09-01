@@ -1,164 +1,69 @@
-// store/authStore.ts
+import type { UserResponse } from "@/types/user";
+import type { UserRole } from "@/types/user";
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type { LoginResponse, UserResponse, UserRole } from "@/types/auth";
-import { getCurrentUser } from "@/lib/api/auth";
-
-const ACCESS_TOKEN_KEY = "kyros.access_token";
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  role: UserRole;
-  clientId: string | null;
-}
+import { createJSONStorage, persist } from "zustand/middleware";
 
 interface AuthState {
   accessToken: string | null;
-  user: AuthUser | null;
+  user: UserResponse | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-  setSession: (payload: LoginResponse) => void;
+
+  setSession: (token: string, user: UserResponse) => void;
   clearSession: () => void;
-  restoreSession: () => Promise<boolean>;
-  resetError: () => void;
+  hasRole: (roles: UserRole | UserRole[]) => boolean;
 }
 
-// Helper to check if token is expired
-const isTokenExpired = (token: string): boolean => {
+function isTokenExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const parts = token.split(".");
+    if (parts.length < 2 || !parts[1]) return true;
+    const payload = JSON.parse(atob(parts[1]));
+    if (!payload.exp) return false;
     return payload.exp * 1000 < Date.now();
   } catch {
-    return true; // If can't parse, treat as expired
+    return true;
   }
-};
+}
+
+export function isSessionValid(): boolean {
+  const { accessToken, isAuthenticated } = useAuthStore.getState();
+  if (!isAuthenticated || !accessToken) return false;
+  return !isTokenExpired(accessToken);
+}
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      accessToken: localStorage.getItem(ACCESS_TOKEN_KEY),
+      accessToken: null,
       user: null,
       isAuthenticated: false,
-      isLoading: false,
-      error: null,
 
-      setSession: (payload: LoginResponse) => {
-        localStorage.setItem(ACCESS_TOKEN_KEY, payload.access_token);
-        set({
-          accessToken: payload.access_token,
-          user: {
-            id: payload.user_id,
-            email: payload.email,
-            role: payload.role,
-            clientId: payload.client_id ?? null,
-          },
-          isAuthenticated: true,
-          isLoading: false,
-          error: null,
-        });
-      },
+      setSession: (accessToken, user) =>
+        set({ accessToken, user, isAuthenticated: true }),
 
-      clearSession: () => {
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
-        set({
-          accessToken: null,
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: null,
-        });
-      },
+      clearSession: () =>
+        set({ accessToken: null, user: null, isAuthenticated: false }),
 
-      restoreSession: async (): Promise<boolean> => {
-        const { clearSession } = get();
-        const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-        
-        if (!token) {
-          set({ isAuthenticated: false, isLoading: false });
-          return false;
-        }
-
-        // Check if token is expired locally
-        if (isTokenExpired(token)) {
-          console.warn("Token expired locally");
-          clearSession();
-          return false;
-        }
-
-        set({ isLoading: true, error: null });
-
-        try {
-          const userResponse: UserResponse = await getCurrentUser();
-          
-          set({
-            accessToken: token,
-            user: {
-              id: userResponse.id,
-              email: userResponse.email,
-              role: userResponse.role,
-              clientId: userResponse.client_id ?? null,
-            },
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-          
-          return true;
-        } catch (error: any) {
-          console.error("Failed to restore session:", error);
-          
-          // Handle different error types
-          let errorMessage = "Session restoration failed";
-          if (error?.response?.status === 401 || error?.response?.status === 403) {
-            errorMessage = "Session expired. Please login again.";
-            clearSession();
-          } else if (error?.response?.status === 500) {
-            errorMessage = "Server error. Please try again later.";
-          } else if (error?.code === "ECONNABORTED" || error?.message?.includes("timeout")) {
-            errorMessage = "Request timeout. Please check your connection.";
-          } else if (error?.message?.includes("network")) {
-            errorMessage = "Network error. Please check your internet connection.";
-          }
-
-          set({
-            isAuthenticated: false,
-            isLoading: false,
-            error: errorMessage,
-          });
-
-          return false;
-        }
-      },
-
-      resetError: () => {
-        set({ error: null });
+      hasRole: (roles) => {
+        const { user, isAuthenticated } = get();
+        if (!isAuthenticated || !user) return false;
+        const allowed = Array.isArray(roles) ? roles : [roles];
+        return allowed.includes(user.role);
       },
     }),
     {
-      name: "auth-storage",
+      name: "kyros-auth-storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         accessToken: state.accessToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.accessToken && isTokenExpired(state.accessToken)) {
+          state.clearSession();
+        }
+      },
     }
   )
 );
-
-// Selectors for cleaner component usage
-export const useAuth = () => {
-  const store = useAuthStore();
-  return {
-    user: store.user,
-    isAuthenticated: store.isAuthenticated,
-    isLoading: store.isLoading,
-    error: store.error,
-    login: store.setSession,
-    logout: store.clearSession,
-    restoreSession: store.restoreSession,
-    resetError: store.resetError,
-  };
-};

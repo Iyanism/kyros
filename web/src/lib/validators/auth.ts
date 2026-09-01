@@ -13,12 +13,12 @@ export const companySchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   pin_code: z.number().min(100000, "Enter a valid 6 digit pin code").max(999999, "Enter a valid 6 digit pin code"),
-  gstin: z.string().optional(),
+  gstin: z.string().nullable().optional().transform((v) => v || null),
 });
 
 export const accountSchema = z.object({
   full_name: z.string().min(2, "Full name is required"),
-  phone_number: z.string().optional(),
+  phone_number: z.string().nullable().optional().transform((v) => v || null),
   email: z.email("Enter a valid login email"),
   password_hash: z.string().min(8, "Password must be at least 8 characters"),
 });

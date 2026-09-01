@@ -13,12 +13,32 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("kyros.access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const raw = localStorage.getItem("kyros-auth-storage");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const token = parsed.state?.accessToken;
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore parse errors
   }
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      try {
+        localStorage.removeItem("kyros-auth-storage");
+      } catch {
+        // ignore
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {

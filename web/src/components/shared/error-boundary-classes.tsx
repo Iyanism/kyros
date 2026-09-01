@@ -29,18 +29,12 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Error caught by boundary:", error, errorInfo);
 
-    // Call optional error handler
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
     }
-
-    // Here you could send to error tracking service
-    // e.g., Sentry, LogRocket, etc.
-    // sendErrorToService(error, errorInfo);
   }
 
   resetError = () => {
@@ -50,19 +44,17 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
-      // Use custom fallback if provided
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
-      // Use default error page
       return (
         <ErrorBoundaryPage
-          error={this.state.error || undefined}
+          error={this.state.error}
           resetError={this.resetError}
-          showDebug={this.props.showDebug}
+          showDebug={this.props.showDebug ?? false}
         />
       );
     }
