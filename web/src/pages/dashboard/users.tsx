@@ -14,6 +14,7 @@ export function Users() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdated, setIsUpdated] = useState(false);
 
   // Load users and clients
   useEffect(() => {
@@ -23,15 +24,12 @@ export function Users() {
       try {
         const data = await get_users();
         if (cancelled) return;
-        console.log("User Details:", data)
         setUsers(data);
-        console.log(cancelled)
       } catch (error) {
         console.error("Failed to load users:", error);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
-          console.log("Lodded")
         }
       }
     };
@@ -64,9 +62,11 @@ export function Users() {
   };
 
   const handleToggleStatus = async (userId: string) => {
+    setIsUpdated(true);
     try{
       const res = await toggle_status(userId);
       setUsers(prevUsers => prevUsers.map(user => user.id === res.id ? res : user))
+      setIsUpdated(false);
     }catch(error){
       console.log("Failed to toggle status:", error)
       toast.error(getApiErrorMessage(error))
@@ -107,6 +107,7 @@ export function Users() {
           <UsersTable
             users={filteredUsers}
             onToggleStatus={handleToggleStatus}
+            isUpdated={isUpdated}
           />
         </div>
       </main>

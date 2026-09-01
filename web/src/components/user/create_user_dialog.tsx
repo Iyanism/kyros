@@ -32,16 +32,14 @@ export function CreateUserDialog({ onAddUser }: CreateUserDialogProps) {
     const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
         e.preventDefault();
         try {
-            console.log("Submitting User Detail:", user)
             const res = await create_user(user)
-            console.log(`User Details: ${res}`)
             onAddUser(res)
             toast.success(`User Successfully Create: ${user.full_name}`)
-
+            setOpen(false)
         } catch (err) {
             toast.error(getApiErrorMessage(err))
         }
-        setOpen(false)
+
     };
 
     useEffect(() => {
@@ -51,15 +49,12 @@ export function CreateUserDialog({ onAddUser }: CreateUserDialogProps) {
             try {
                 const data = await get_clients();
                 if (cancelled) return;
-                console.log("Clients Detail:", data)
                 setClients(data);
-                console.log(cancelled)
             } catch (error) {
                 console.error("Failed to load clients:", error);
             } finally {
                 if (!cancelled) {
                     setIsLoading(false);
-                    console.log("Lodded")
                 }
             }
         };
@@ -68,8 +63,6 @@ export function CreateUserDialog({ onAddUser }: CreateUserDialogProps) {
             cancelled = true;
         };
     }, [])
-    console.log('isLoading:', isLoading, 'clients:', clients);
-
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger

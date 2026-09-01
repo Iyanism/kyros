@@ -9,13 +9,15 @@ import {
 import { UserStatusBadge } from "./user_status_badge";
 import { UserRoleBadge } from "@/components/user/user_role_badge";
 import type { UserClientResponse } from "@/types/user";
+import { getInitials } from "@/utils/string-operations";
 
 interface UsersTableProps {
   users: UserClientResponse[];
   onToggleStatus: (userId: string) => void;
+  isUpdated: boolean;
 }
 
-export function UsersTable({ users, onToggleStatus }: UsersTableProps) {
+export function UsersTable({ users, onToggleStatus, isUpdated }: UsersTableProps) {
   if (users.length === 0) {
     return (
       <div className="rounded-[16px] border border-[#e2e8f0] bg-white shadow-xs overflow-hidden">
@@ -64,10 +66,7 @@ export function UsersTable({ users, onToggleStatus }: UsersTableProps) {
               <TableCell className="py-3.5 px-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2457e6]/10 text-[#2457e6] font-bold text-xs border border-[#2457e6]/20">
-                    {user.full_name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
+                    {getInitials(user?.full_name)}
                   </div>
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold text-[#0f172a] leading-tight">
@@ -118,7 +117,7 @@ export function UsersTable({ users, onToggleStatus }: UsersTableProps) {
                       : "text-[#15803d] border-[#bbf7d0] hover:bg-[#f0fdf4]"
                   }`}
                 >
-                  {user.is_active ? "Deactivate" : "Activate"}
+                  {isUpdated ? "Updating..." : user.is_active ? "Deactivate" : "Activate"}
                 </button>
               </TableCell>
             </TableRow>

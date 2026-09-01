@@ -72,7 +72,7 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
   const statusColor = getStatusColor(activeSlot.occupancy);
 
   return (
-    <div className="rounded-[16px] border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between h-full sticky top-24">
+    <div className="rounded-[16px] border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between h-full">
       <div>
         <div className="flex items-center gap-2 border-b border-[#f1f5f9] pb-3 mb-4">
           <Info className="h-4 w-4 text-[#2457e6]" />
@@ -127,8 +127,8 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
                 <User className="h-3 w-3 text-[#2457e6]" /> Client
               </span>
               <span className="font-semibold text-[#2457e6]">
-                {isOccupied && activeSlot.allocated_client_id 
-                  ? activeSlot.allocated_client_id 
+                {isOccupied && activeSlot.allocated_client_id
+                  ? activeSlot.allocated_client_id
                   : 'N/A'}
               </span>
             </div>

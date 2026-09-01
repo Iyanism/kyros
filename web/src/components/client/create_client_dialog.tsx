@@ -39,7 +39,7 @@ export function CreateClientDialog({ onAddClient }: CreateClientDialogProps) {
 
     if (!parsed.success) {
       const first = parsed.error.issues[0];
-      toast.error(first.message);
+      toast.error(first?.message ?? "Invalid form input");
       return;
     }
 

@@ -37,8 +37,8 @@ export function CreateChamberDialog({ onSubmitChamber }: CreateChamberDialogProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await create_chamber(chamber)
-      onSubmitChamber(res)
+      const res = await create_chamber(chamber);
+      onSubmitChamber(res);
       setChamber({
         name: "",
         code: "",
@@ -46,11 +46,11 @@ export function CreateChamberDialog({ onSubmitChamber }: CreateChamberDialogProp
         temperature: 0.0,
         num_racks: 0,
         slots_per_rack: 0,
-      })
+      });
+      setOpen(false); // Only close on success
     } catch (err) {
-      toast.error(getApiErrorMessage(err))
+      toast.error(getApiErrorMessage(err));
     }
-    setOpen(false);
   };
 
   return (
@@ -130,11 +130,11 @@ export function CreateChamberDialog({ onSubmitChamber }: CreateChamberDialogProp
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="capacity" className="text-[12px] font-semibold text-[#0f172a]">
+                <Label htmlFor="num_racks" className="text-[12px] font-semibold text-[#0f172a]">
                   Number of Racks
                 </Label>
                 <Input
-                  id="capacity"
+                  id="num_racks"
                   type="number"
                   placeholder="500"
                   value={chamber.num_racks || ""}
@@ -143,11 +143,11 @@ export function CreateChamberDialog({ onSubmitChamber }: CreateChamberDialogProp
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="capacity" className="text-[12px] font-semibold text-[#0f172a]">
+                <Label htmlFor="slots_per_racks" className="text-[12px] font-semibold text-[#0f172a]">
                   Slots per Rack
                 </Label>
                 <Input
-                  id="capacity"
+                  id="slots_per_racks"
                   type="number"
                   placeholder="500"
                   value={chamber.slots_per_rack || ""}

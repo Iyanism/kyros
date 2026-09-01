@@ -95,8 +95,8 @@ export function RackStructure({
                   </div>
 
                   <div className="text-[11px] font-medium truncate">
-                    {slot.is_occupied && slot.allocated_client_id 
-                      ? `Client ${slot.allocated_client_id.slice(0, 8)}` 
+                    {slot.is_occupied && slot.allocated_client_id
+                      ? `Client ${slot.allocated_client_id.slice(0, 8)}`
                       : "Empty Slot"}
                   </div>
 
@@ -105,10 +105,7 @@ export function RackStructure({
                     <span className="font-bold">{slot.quantity ?? 0}</span>
                   </div>
 
-                  {/* Tooltip-like full code on hover */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-[12px] text-white text-[10px] font-medium p-2">
-                    {slot.full_code}
-                  </div>
+
                 </div>
               );
             })}

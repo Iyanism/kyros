@@ -17,15 +17,30 @@ export function Chamber() {
   const handleSelectChamber = async (chamber: ChamberSummary) => {
     setActiveSlot(null);
     try {
-      setSelectedChamber(await get_chamber_detail(chamber.id));
+      const detail = await get_chamber_detail(chamber.id);
+      setSelectedChamber(detail);
     } catch (error) {
       console.error("Error fetching chamber detail:", error);
     }
   };
 
-  const handleAddNewChamber = async (chamber: ChamberDetail) => {
-    setChambers({ ...chambers, ...chamber })
-  }
+  const handleAddNewChamber = (newChamber: ChamberDetail) => {
+    const summaryItem: ChamberSummary = {
+      id: newChamber.id,
+      code: newChamber.code,
+      name: newChamber.name,
+      category: newChamber.category,
+      status: newChamber.status,
+      temperature: newChamber.temperature,
+      total_racks: newChamber.total_racks,
+      total_slots: newChamber.total_slots,
+      total_capacity: newChamber.total_capacity,
+      used_capacity: newChamber.used_capacity,
+      created_at: newChamber.created_at,
+      updated_at: newChamber.updated_at,
+    };
+    setChambers((prev) => [...prev, summaryItem]);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +50,7 @@ export function Chamber() {
         const chamberData = await get_chambers();
         if (cancelled) return;
         setChambers(chamberData);
-        if (chamberData.length > 0) {
+        if (chamberData.length > 0 && chamberData[0]) {
           setSelectedChamber(await get_chamber_detail(chamberData[0].id));
         }
       } catch (error) {
