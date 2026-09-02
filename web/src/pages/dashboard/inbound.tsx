@@ -6,7 +6,11 @@ import { InboundFilters } from "@/components/inbound/inbound_filters";
 import { InboundTable } from "@/components/inbound/inbound_table";
 import { CreateInboundOrderDialog } from "@/components/inbound/create_inbound_order_dialog";
 import { InboundDetailDialog } from "@/components/inbound/inbound_detail_dialog";
-import { get_inbound_orders, update_inbound_order_status, delete_inbound_order } from "@/lib/api/order";
+import {
+  get_inbound_orders,
+  update_inbound_order_status,
+  delete_inbound_order,
+} from "@/lib/api/order";
 import { get_clients } from "@/lib/api/client";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import type { InboundOrderResponse, OrderStatus } from "@/types/order";
@@ -21,7 +25,8 @@ export function Inbound() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Active detail modal order
-  const [activeDetailOrder, setActiveDetailOrder] = useState<InboundOrderResponse | null>(null);
+  const [activeDetailOrder, setActiveDetailOrder] =
+    useState<InboundOrderResponse | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   useEffect(() => {
@@ -55,21 +60,28 @@ export function Inbound() {
     setOrders((prev) => [newOrder, ...prev]);
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (
+    orderId: string,
+    newStatus: OrderStatus,
+  ) => {
     try {
       const updated = await update_inbound_order_status(orderId, newStatus);
       setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
       if (activeDetailOrder && activeDetailOrder.id === orderId) {
         setActiveDetailOrder(updated);
       }
-      toast.success(`Order ${updated.order_number} status updated to '${newStatus}'`);
+      toast.success(
+        `Order ${updated.order_number} status updated to '${newStatus}'`,
+      );
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    const confirmed = window.confirm("Delete this inbound order manifest? This action cannot be undone.");
+    const confirmed = window.confirm(
+      "Delete this inbound order manifest? This action cannot be undone.",
+    );
     if (!confirmed) return;
 
     try {
@@ -100,11 +112,13 @@ export function Inbound() {
       o.items.some(
         (it) =>
           it.product_name.toLowerCase().includes(term) ||
-          (it.batch_number && it.batch_number.toLowerCase().includes(term))
+          (it.batch_number && it.batch_number.toLowerCase().includes(term)),
       );
 
-    const matchesStatus = selectedStatus === "all" || o.status === selectedStatus;
-    const matchesClient = selectedClient === "all" || o.client_id === selectedClient;
+    const matchesStatus =
+      selectedStatus === "all" || o.status === selectedStatus;
+    const matchesClient =
+      selectedClient === "all" || o.client_id === selectedClient;
 
     return matchesSearch && matchesStatus && matchesClient;
   });
@@ -122,7 +136,9 @@ export function Inbound() {
         <main className="flex-1 lg:ml-65">
           <div className="flex flex-col items-center justify-center h-screen gap-3">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#e2e8f0] border-t-[#2457e6]" />
-            <div className="text-sm font-medium text-[#64748b]">Loading inbound orders...</div>
+            <div className="text-sm font-medium text-[#64748b]">
+              Loading inbound orders...
+            </div>
           </div>
         </main>
       </div>
@@ -136,7 +152,7 @@ export function Inbound() {
         <DashboardHeader
           title="Inbound Orders"
           subtitle="Manage cold storage shipment intake, vehicle logging, and batch manifests"
-          actions={<CreateInboundOrderDialog clients={clients} onAddOrder={handleAddOrder} />}
+          actions={<CreateInboundOrderDialog onAddOrder={handleAddOrder} />}
         />
 
         <div className="p-6 lg:p-8 space-y-6">
