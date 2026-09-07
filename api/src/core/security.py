@@ -72,3 +72,48 @@ def verify_access_token(token: str) -> dict[str, object] | None:
     except Exception as e:
         logger.error(f"Unexpected token error: {str(e)}")
         return None
+
+
+def create_refresh_token(data: dict[str, object]) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+    to_encode.update({"exp": expire, "type": "refresh"})
+    try:
+        encode_jwt = jwt.encode(
+            to_encode,
+            settings.REFRESH_TOKEN_SECRET_KEY.get_secret_value(),
+            settings.JWT_ALGORITHM,
+        )
+
+        return encode_jwt
+    except JWTError as e:
+        logger.error(f"Refresh token creation failed: {str(e)}")
+        raise RuntimeError("Failed to create refresh token") from e
+    except Exception as e:
+        logger.error(f"Refresh token creation failed: {str(e)}")
+        raise
+
+
+def verify_refresh_token(token: str) -> dict[str, object] | None:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.REFRESH_TOKEN_SECRET_KEY.get_secret_value(),
+            settings.JWT_ALGORITHM,
+        )
+
+        if payload.get("type") != "refresh":
+            logger.warning("Invalid token type in refresh token")
+            return None
+
+        return payload
+
+    except ExpiredSignatureError:
+        logger.warning("Refresh token has expired")
+    except JWTError as e:
+        logger.warning(f"Refresh token verification failed: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected refresh token error: {str(e)}")
+        return None

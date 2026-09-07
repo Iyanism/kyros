@@ -12,10 +12,17 @@ from src.core.config import settings
 from src.core.logger import logger
 
 
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy domain models."""
+
+    pass
+
+
 def create_db_engine() -> AsyncEngine:
+    """Factory to build the async database engine."""
     try:
         return create_async_engine(
-            settings.DATABASE_URL,
+            str(settings.DATABASE_URL),
             pool_size=settings.DATABASE_POOL_SIZE,
             max_overflow=settings.DATABASE_MAX_OVERFLOW,
             pool_pre_ping=True,
@@ -23,46 +30,42 @@ def create_db_engine() -> AsyncEngine:
             echo=settings.DATABASE_ECHO,
         )
     except Exception as e:
-        logger.error(f"Failed to create database engine: {str(e)}")
-        raise RuntimeError("Database connection failed") from e
+        logger.error(f"Failed to initialize database engine: {e}", exc_info=True)
+        raise
 
 
-engine = create_db_engine()
+# Module-level engine and session factory
+engine: AsyncEngine = create_db_engine()
 
 AsyncSessionLocal = async_sessionmaker(
-    engine,
+    bind=engine,
     expire_on_commit=False,
     autoflush=False,
-    autocommit=False,
+    class_=AsyncSession,
 )
 
 
-class Base(DeclarativeBase):
-    pass
-
-
 async def init_db() -> None:
-    """Create all tables registered on Base.metadata (dev convenience).
+    """Development helper to create database tables.
 
-    Requires model modules to be imported first — use
-    `import src.domains.models` before calling. Prefer Alembic migrations
-    in staging/production.
+    Ensure all models are imported prior to calling this function so they
+    are registered on Base.metadata.
     """
-    import src.domains.models  # noqa: F401 — registers all models  # pyright: ignore[reportUnusedImport]
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created")
+        logger.info("Database tables verified/created successfully.")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency for providing a transactional database session per request.
+
+    Handles rollback on unhandled exceptions. Commits should be explicitly
+    managed by the caller / service layer.
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
         except Exception as e:
-            logger.error(f"Database session error: {str(e)}", exc_info=True)
+            logger.error(f"Database session exception encountered: {e}", exc_info=True)
             await session.rollback()
             raise
-        finally:
-            await session.close()

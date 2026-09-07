@@ -5,175 +5,154 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user
+from src.core.dependencies import require_role
+from src.core.logger import logger
 from src.domains.clients.schema import ClientCreate, ClientResponse, ClientUpdate
-from src.domains.clients.service import ClientNotFoundError, ClientService
+from src.domains.clients.service import (
+    ClientAlreadyExistsError,
+    ClientNotFoundError,
+    ClientService,
+)
+from src.domains.users.model import UserRole
 
 router = APIRouter(
     prefix="/clients",
     tags=["Clients"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
 )
 
 
+def get_client_service(db: Annotated[AsyncSession, Depends(get_db)]) -> ClientService:
+    return ClientService(db)
+
+
+ServiceDep = Annotated[ClientService, Depends(get_client_service)]
+
+
 @router.post("", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
-async def create_client(
-    payload: ClientCreate, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    service = ClientService(db)
+async def create_client(payload: ClientCreate, service: ServiceDep):
     try:
-        client = await service.create(payload)
-    except ValueError as e:
+        return await service.create(payload)
+    except ClientAlreadyExistsError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "VALIDATION_ERROR",
-                "message": str(e),
-                "field": getattr(e, "field", None),
-            },
-        )
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "CLIENT_ALREADY_EXISTS", "message": str(e)},
+        ) from e
     except Exception as e:
+        logger.error(f"Failed to create client: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-
-    return client
-
-
-@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_client(client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
-    service = ClientService(db)
-    try:
-        await service.delete(client_id)
-    except ClientNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "CLIENT NOT FOUND",
-                "message": str(e),
+                "message": "An unexpected error occurred.",
             },
         ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-
-    return None
-
-
-@router.patch(
-    "/{client_id}/status", response_model=ClientResponse, status_code=status.HTTP_200_OK
-)
-async def toggle_client_status(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    service = ClientService(db)
-    try:
-        client = await service.toggle_status(client_id)
-    except ClientNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "CLIENT NOT FOUND",
-                "message": str(e),
-            },
-        ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-
-    return client
 
 
 @router.get("", response_model=list[ClientResponse], status_code=status.HTTP_200_OK)
-async def get_clients(db: Annotated[AsyncSession, Depends(get_db)]):
-    service = ClientService(db)
+async def get_clients(
+    service: ServiceDep,
+):
     try:
-        clients = await service.list()
-    except ClientNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "CLIENTS NOT FOUND",
-                "message": str(e),
-            },
-        ) from e
+        return await service.list_all()
     except Exception as e:
+        logger.error(f"Failed to list clients: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
+                "message": "An unexpected error occurred.",
             },
-        )
-
-    return clients
+        ) from e
 
 
 @router.get(
     "/{client_id}", response_model=ClientResponse, status_code=status.HTTP_200_OK
 )
-async def get_client(client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
-    service = ClientService(db)
+async def get_client(client_id: UUID, service: ServiceDep):
     try:
-        client = await service.get_by_id(client_id)
+        return await service.get_by_id(client_id)
     except ClientNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "CLIENTS NOT FOUND",
-                "message": str(e),
-            },
+            detail={"code": "CLIENT_NOT_FOUND", "message": str(e)},
         ) from e
     except Exception as e:
+        logger.error(f"Failed to get client {client_id}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
+                "message": "An unexpected error occurred.",
             },
-        )
-
-    return client
+        ) from e
 
 
 @router.patch(
     "/{client_id}", response_model=ClientResponse, status_code=status.HTTP_200_OK
 )
-async def update(
-    client_id: UUID, payload: ClientUpdate, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    service = ClientService(db)
+async def update_client(client_id: UUID, payload: ClientUpdate, service: ServiceDep):
     try:
-        client = await service.update(client_id, payload)
+        return await service.update(client_id, payload)
     except ClientNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "CLIENTS NOT FOUND",
-                "message": str(e),
-            },
+            detail={"code": "CLIENT_NOT_FOUND", "message": str(e)},
+        ) from e
+    except ClientAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "CLIENT_ALREADY_EXISTS", "message": str(e)},
         ) from e
     except Exception as e:
+        logger.error(f"Failed to update client {client_id}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
+                "message": "An unexpected error occurred.",
             },
-        )
+        ) from e
 
-    return client
+
+@router.patch(
+    "/{client_id}/status", response_model=ClientResponse, status_code=status.HTTP_200_OK
+)
+async def toggle_client_status(client_id: UUID, service: ServiceDep):
+    try:
+        return await service.toggle_status(client_id)
+    except ClientNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "CLIENT_NOT_FOUND", "message": str(e)},
+        ) from e
+    except Exception as e:
+        logger.error(f"Failed to toggle client status {client_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred.",
+            },
+        ) from e
+
+
+@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_client(client_id: UUID, service: ServiceDep):
+    try:
+        await service.delete(client_id)
+        return None
+    except ClientNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "CLIENT_NOT_FOUND", "message": str(e)},
+        ) from e
+    except Exception as e:
+        logger.error(f"Failed to delete client {client_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred.",
+            },
+        ) from e

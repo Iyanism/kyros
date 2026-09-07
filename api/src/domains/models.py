@@ -6,8 +6,26 @@ for autogenerate / create_all. Keep explicit — auto-discovery hides drift.
 """
 
 from src.domains.clients.model import Client  # noqa: F401
-from src.domains.inventory.model import Pallet, SlotAllocation  # noqa: F401
-from src.domains.orders.model import InboundOrder, OrderItem  # noqa: F401
+from src.domains.inbound_orders.model import (  # noqa: F401
+    InboundOrder,
+    InboundOrderItem,
+)
+from src.domains.inventory.model import (  # noqa: F401
+    Pallet,
+    PickList,
+    PickRecord,
+    SlotAllocation,
+)
+from src.domains.invoicing.model import Invoice, InvoiceLineItem  # noqa: F401
+from src.domains.payments.model import Payment  # noqa: F401
+from src.domains.stock_movements.model import (  # noqa: F401
+    StockLevel,
+    StockMovement,
+)
+from src.domains.outbound_orders.model import (  # noqa: F401
+    OutboundOrder,
+    OutboundOrderItem,
+)
 from src.domains.users.model import User  # noqa: F401
 from src.domains.warehouse.model import Chamber, Rack, Slot  # noqa: F401
 
@@ -15,10 +33,19 @@ __all__ = [
     "Chamber",
     "Client",
     "InboundOrder",
-    "OrderItem",
+    "InboundOrderItem",
+    "Invoice",
+    "InvoiceLineItem",
+    "OutboundOrder",
+    "OutboundOrderItem",
+    "Pallet",
+    "Payment",
+    "PickList",
+    "PickRecord",
     "Rack",
     "Slot",
-    "User",
-    "Pallet",
     "SlotAllocation",
+    "StockLevel",
+    "StockMovement",
+    "User",
 ]

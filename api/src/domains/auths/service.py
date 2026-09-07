@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logger import logger
-from src.core.security import create_access_token, verify_password
+from src.core.security import create_access_token, create_refresh_token, verify_password
 from src.domains.auths.schema import (
     LoginRequest,
     LoginResponse,
@@ -38,24 +38,24 @@ class AuthService:
             raise AuthenticationError("User account is blocked or deactivated")
         return UserResponse.model_validate(user)
 
-    async def create_tokens(self, user: UserResponse) -> str:
-        access_token = create_access_token(
-            data={
-                "sub": str(user.id),
-                "client_id": str(user.client_id) if user.client_id else None,
-                "role": str(user.role),
-            }
-        )
-
-        return access_token
+    async def create_tokens(self, user: UserResponse) -> tuple[str, str]:
+        token_data = {
+            "sub": str(user.id),
+            "client_id": str(user.client_id) if user.client_id else None,
+            "role": str(user.role),
+        }
+        access_token = create_access_token(data=token_data)
+        refresh_token = create_refresh_token(data=token_data)
+        return access_token, refresh_token
 
     async def login(self, login_data: LoginRequest) -> LoginResponse:
         user = await self.authenticate(login_data)
         await self.user_service.update_last_login(user.id)
-        access_token = await self.create_tokens(user)
+        access_token, refresh_token = await self.create_tokens(user)
         logger.info("Login success: email=%s user_id=%s", login_data.email, user.id)
         return LoginResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             user_id=user.id,
             client_id=user.client_id,

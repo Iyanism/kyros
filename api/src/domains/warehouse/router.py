@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user
+from src.core.dependencies import require_role
 from src.core.logger import logger
+from src.domains.users.model import UserRole
 from src.domains.warehouse.schema import (
     ChamberCreate,
     ChamberDetailResponse,
@@ -24,7 +25,7 @@ from src.domains.warehouse.service import (
 router = APIRouter(
     prefix="/warehouses",
     tags=["Warehouses"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.OPERATOR))],
 )
 
 
@@ -245,12 +246,13 @@ async def get_rack(rack_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
 async def add_rack(
     chamber_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    slots_per_rack: int = 10,
+    bays_per_rack: int = 5,
+    levels_per_rack: int = 2,
     rack_number: str | None = None,
 ):
     service = WarehouseService(db)
     try:
-        return await service.add_rack(chamber_id, slots_per_rack, rack_number)
+        return await service.add_rack(chamber_id, bays_per_rack, levels_per_rack, rack_number)
     except WarehouseNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

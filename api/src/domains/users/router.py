@@ -1,155 +1,57 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user
+from src.core.dependencies import require_role
+from src.domains.users.model import UserRole
 from src.domains.users.schema import (
     UserClientResponse,
     UserCreate,
     UserResponse,
     UserUpdate,
 )
-from src.domains.users.service import UserNotFoundError, UserService
+from src.domains.users.service import UserService
 
 router = APIRouter(
     prefix="/users",
     tags=["Users"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
 )
 
 
+# Dependency Injection Helper
+def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserService:
+    return UserService(db)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+
+
 @router.post("", response_model=UserClientResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(
-    payload: UserCreate, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    service = UserService(db)
-    try:
-        user = await service.create(payload)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "VALIDATION_ERROR",
-                "message": str(e),
-                "field": getattr(e, "field", None),
-            },
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-
-    return user
-
-
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
-    service = UserService(db)
-    try:
-        await service.delete(user_id)
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "USER NOT FOUND",
-                "message": str(e),
-            },
-        ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-
-    return None
+async def create_user(payload: UserCreate, service: UserServiceDep):
+    return await service.create(payload)
 
 
 @router.get("", response_model=list[UserClientResponse], status_code=status.HTTP_200_OK)
-async def get_users(db: Annotated[AsyncSession, Depends(get_db)]):
-    service = UserService(db)
-    try:
-        users = await service.list()
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "USERS NOT FOUND",
-                "message": str(e),
-            },
-        ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-
-    return users
-
-
-@router.patch("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def update_user(
-    user_id: UUID, payload: UserUpdate, db: Annotated[AsyncSession, Depends(get_db)]
+async def get_users(
+    service: UserServiceDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    service = UserService(db)
-    try:
-        user = await service.update(user_id, payload)
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "USER NOT FOUND",
-                "message": str(e),
-            },
-        ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-
-    return user
+    return await service.list_all(limit=limit, offset=offset)
 
 
 @router.get("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def get_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
-    service = UserService(db)
-    try:
-        user = await service.get_by_id(user_id)
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "USER NOT FOUND",
-                "message": str(e),
-            },
-        ) from e
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": "unexpected error occured in the server",
-            },
-        )
+async def get_user(user_id: UUID, service: UserServiceDep):
+    return await service.get_by_id(user_id)
 
-    return user
+
+@router.patch("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def update_user(user_id: UUID, payload: UserUpdate, service: UserServiceDep):
+    return await service.update(user_id, payload)
 
 
 @router.patch(
@@ -157,25 +59,11 @@ async def get_user(user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]):
     response_model=UserClientResponse,
     status_code=status.HTTP_200_OK,
 )
-async def toggle_user_status(
-    user_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
-):
-    service = UserService(db)
-    try:
-        return await service.toggle_status(user_id)
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "USER NOT FOUND",
-                "message": str(e),
-            },
-        ) from e
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "code": "INTERNAL_ERROR",
-                "message": "unexpected error occured in the server",
-            },
-        )
+async def toggle_user_status(user_id: UUID, service: UserServiceDep):
+    return await service.toggle_status(user_id)
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(user_id: UUID, service: UserServiceDep):
+    await service.delete(user_id)
+    return None

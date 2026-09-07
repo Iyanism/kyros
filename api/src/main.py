@@ -7,7 +7,11 @@ from src.domains import (
     auth_router,
     client_router,
     inventory_router,
+    invoicing_router,
     order_router,
+    outbound_order_router,
+    payments_router,
+    stock_movement_router,
     user_router,
     warehouse_router,
 )
@@ -31,3 +35,7 @@ app.include_router(auth_router.router)
 app.include_router(warehouse_router.router)
 app.include_router(order_router.router)
 app.include_router(inventory_router.router)
+app.include_router(outbound_order_router.router)
+app.include_router(stock_movement_router.router)
+app.include_router(invoicing_router.router)
+app.include_router(payments_router.router)
