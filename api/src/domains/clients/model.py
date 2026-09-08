@@ -11,7 +11,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.core.database import Base
 
 if TYPE_CHECKING:
-    from src.domains.orders.model import InboundOrder
+    from src.domains.inbound_orders.model import InboundOrder
+    from src.domains.invoicing.model import Invoice
+    from src.domains.outbound_orders.model import OutboundOrder
     from src.domains.users.model import User
 
 
@@ -80,7 +82,15 @@ class Client(Base):
     )
 
     inbound_orders: Mapped[list["InboundOrder"]] = relationship(
-        "InboundOrder", back_populates="client"
+        "InboundOrder", back_populates="client", passive_deletes=True
+    )
+
+    outbound_orders: Mapped[list["OutboundOrder"]] = relationship(
+        "OutboundOrder", back_populates="client", passive_deletes=True
+    )
+
+    invoices: Mapped[list["Invoice"]] = relationship(
+        "Invoice", back_populates="client", passive_deletes=True
     )
 
     @override

@@ -1,10 +1,14 @@
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.domains.warehouse.model import ChamberCategory, ChamberStatus, RackStatus
+from src.domains.warehouse.model import (
+    ChamberCategory,
+    ChamberStatus,
+    RackStatus,
+    SlotStatus,
+)
 
 
 class ChamberCreate(BaseModel):
@@ -13,7 +17,8 @@ class ChamberCreate(BaseModel):
     category: ChamberCategory
     temperature: float
     num_racks: int = Field(ge=1, le=50)
-    slots_per_rack: int = Field(ge=1, le=100)
+    bays_per_rack: int = Field(ge=1, le=100)
+    levels_per_rack: int = Field(ge=1, le=100)
 
 
 class ChamberResponse(BaseModel):
@@ -50,12 +55,12 @@ class RackResponse(BaseModel):
 class SlotResponse(BaseModel):
     id: UUID
     rack_id: UUID
-    slot_number: str
-    full_code: str
-    occupancy: Literal["empty", "partial", "filled"]
-    is_occupied: bool
+    bay: int
+    level: int
+    depth: int
+    location_code: str
+    status: SlotStatus
     allocated_client_id: UUID | None = None
-    quantity: float | None = None
     created_at: datetime
     updated_at: datetime
 

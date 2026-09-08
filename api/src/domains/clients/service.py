@@ -9,62 +9,71 @@ from src.domains.clients.repository import ClientRepository
 from src.domains.clients.schema import ClientCreate, ClientResponse, ClientUpdate
 
 
-class ClientNotFoundError(Exception):
+# --- Domain Exceptions ---
+class ClientError(Exception):
+    """Base domain exception for Client domain."""
+
+    pass
+
+
+class ClientNotFoundError(ClientError):
+    """Raised when a client resource is not found."""
+
+    pass
+
+
+class ClientAlreadyExistsError(ClientError):
+    """Raised when a client email or unique field conflicts."""
+
     pass
 
 
 class ClientService:
-    def __init__(self, db: AsyncSession):
-        self.repo: ClientRepository = ClientRepository(db)
+    def __init__(self, db: AsyncSession, repo: ClientRepository | None = None) -> None:
         self.db: AsyncSession = db
+        self.repo: ClientRepository = repo or ClientRepository(db)
 
     async def get_by_id(self, client_id: UUID) -> ClientResponse:
         client = await self.repo.get_by_id(client_id)
         if client is None:
-            raise ClientNotFoundError(f"no client with client id {client_id} found")
+            raise ClientNotFoundError(f"Client with ID '{client_id}' not found.")
 
         return ClientResponse.model_validate(client)
 
     async def create(self, client_data: ClientCreate) -> ClientResponse:
-        existing = await self.repo.get_by_email(client_data.email)
-        if existing is not None:
-            raise ValueError("Client with this email already exist.")
-
-        client: Client = Client(**client_data.model_dump())
+        client = Client(**client_data.model_dump())
         try:
             client = await self.repo.create(client)
-        except IntegrityError:
-            raise ValueError("A client with this email already exists")
-        except Exception:
-            logger.info("DataBase Error during creation of use")
+        except IntegrityError as e:
+            logger.warning(
+                f"Client creation failed due to unique constraint conflict: {client_data.email}"
+            )
+            raise ClientAlreadyExistsError(
+                f"Client with email '{client_data.email}' already exists."
+            ) from e
+        except Exception as e:
+            logger.error(f"Database error during client creation: {e}", exc_info=True)
             raise
 
         logger.info(
-            f"Client created: id: {client.id} name:{client.name} email: {client.email}"
+            f"Client created successfully: id={client.id}, email={client.email}"
         )
         return ClientResponse.model_validate(client)
 
-    async def delete(self, client_id: UUID) -> None:
-        deleted = await self.repo.delete(client_id)
-        if not deleted:
-            raise ClientNotFoundError(f"no client with client id {client_id} found")
+    async def list_all(self) -> list[ClientResponse]:
+        clients = await self.repo.list_all()
+        # Empty array is a valid 200 OK response
+        return [ClientResponse.model_validate(client) for client in clients]
 
     async def toggle_status(self, client_id: UUID) -> ClientResponse:
         client = await self.repo.toggle_status(client_id)
         if client is None:
-            raise ClientNotFoundError(f"no client with client id {client_id} found")
+            raise ClientNotFoundError(f"Client with ID '{client_id}' not found.")
 
         logger.info(
-            f"Client deactivated: id: {client.id} name:{client.name} email: {client.email}"
+            f"Client status updated: id={client.id}, is_active={client.is_active}"
         )
         return ClientResponse.model_validate(client)
-
-    async def list(self) -> list[ClientResponse]:
-        clients = await self.repo.list_all()
-        if not clients:
-            raise ClientNotFoundError("No client found")
-        logger.info("Sending List of Clients details")
-        return [ClientResponse.model_validate(client) for client in clients]
 
     async def update(
         self, client_id: UUID, update_data: ClientUpdate
@@ -74,14 +83,26 @@ class ClientService:
                 client_id, update_data.model_dump(exclude_unset=True)
             )
             if client is None:
-                raise ClientNotFoundError(f"no client with client id {client_id} found")
-        except Exception as e:
-            logger.error(
-                f"Error updating details of client with client id {client_id} and name {update_data.name}: {e}"
+                raise ClientNotFoundError(f"Client with ID '{client_id}' not found.")
+        except IntegrityError as e:
+            logger.warning(
+                f"Client update failed due to constraint conflict on ID '{client_id}'"
             )
+            raise ClientAlreadyExistsError(
+                "Updated details conflict with an existing client record."
+            ) from e
+        except ClientError:
+            raise
+        except Exception as e:
+            logger.error(f"Error updating client ID '{client_id}': {e}", exc_info=True)
             raise
 
-        logger.info(
-            f"Details updated: id:{client_id} name:{client.name} email:{client.email}"
-        )
+        logger.info(f"Client updated successfully: id={client_id}")
         return ClientResponse.model_validate(client)
+
+    async def delete(self, client_id: UUID) -> None:
+        deleted = await self.repo.delete(client_id)
+        if not deleted:
+            raise ClientNotFoundError(f"Client with ID '{client_id}' not found.")
+
+        logger.info(f"Client deleted successfully: id={client_id}")

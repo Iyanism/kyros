@@ -29,7 +29,7 @@ class ClientResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClientUpdate(BaseModel):
@@ -41,4 +41,3 @@ class ClientUpdate(BaseModel):
     state: str | None = None
     pin_code: int | None = None
     gstin: str | None = None
-    is_active: bool | None = None

@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logger import logger
-from src.domains.warehouse.model import Chamber, Rack, Slot
+from src.domains.warehouse.model import Chamber, Rack, Slot, SlotStatus
 from src.domains.warehouse.repository import (
     ChamberRepository,
     RackRepository,
@@ -62,31 +62,23 @@ class WarehouseService:
                 )
                 rack = await self.rack_repo.create(rack)
                 slot_responses: list[SlotResponse] = []
-                for j in range(1, chamber_data.slots_per_rack + 1):
-                    slot = Slot(
-                        rack_id=rack.id,
-                        slot_number=f"S{j:02d}",
-                        is_occupied=False,
-                    )
-                    slot = await self.slot_repo.create(slot)
-                    slot_responses.append(self._to_slot_response(slot))
-                # fresh creates have no loaded relationships — compute full_code directly
+                for bay in range(1, chamber_data.bays_per_rack + 1):
+                    for level in range(1, chamber_data.levels_per_rack + 1):
+                        location_code = (
+                            f"{chamber.code}-{rack.rack_number}"
+                            f"-B{bay:02d}-L{level:02d}"
+                        )
+                        slot = Slot(
+                            rack_id=rack.id,
+                            bay=bay,
+                            level=level,
+                            depth=1,
+                            location_code=location_code,
+                            status=SlotStatus.AVAILABLE,
+                        )
+                        slot = await self.slot_repo.create(slot)
+                        slot_responses.append(self._to_slot_response(slot))
                 rack_full_code = f"{chamber.code}-{rack.rack_number}"
-                slot_responses = [
-                    SlotResponse(
-                        id=s.id,
-                        rack_id=s.rack_id,
-                        slot_number=s.slot_number,
-                        full_code=f"{rack_full_code}-{s.slot_number}",
-                        occupancy=s.occupancy,
-                        is_occupied=s.is_occupied,
-                        allocated_client_id=s.allocated_client_id,
-                        quantity=s.quantity,
-                        created_at=s.created_at,
-                        updated_at=s.updated_at,
-                    )
-                    for s in slot_responses
-                ]
                 rack_details.append(
                     RackDetailResponse(
                         id=rack.id,
@@ -110,7 +102,11 @@ class WarehouseService:
             logger.error(f"Database error creating chamber {chamber_data.code}")
             raise
 
-        total_slots = chamber_data.num_racks * chamber_data.slots_per_rack
+        total_slots = (
+            chamber_data.num_racks
+            * chamber_data.bays_per_rack
+            * chamber_data.levels_per_rack
+        )
 
         logger.info(
             f"Chamber created: id={chamber.id} name={chamber.name} code={chamber.code} "
@@ -166,7 +162,9 @@ class WarehouseService:
         total_occupied = 0
         rack_details: list[RackDetailResponse] = []
         for rack in chamber.racks:
-            occupied = sum(1 for s in rack.slots if s.is_occupied)
+            occupied = sum(
+                1 for s in rack.slots if s.status == SlotStatus.OCCUPIED
+            )
             total_slots += len(rack.slots)
             total_occupied += occupied
             rack_details.append(
@@ -293,7 +291,11 @@ class WarehouseService:
         )
 
     async def add_rack(
-        self, chamber_id: UUID, slots_per_rack: int = 10, rack_number: str | None = None
+        self,
+        chamber_id: UUID,
+        bays_per_rack: int = 5,
+        levels_per_rack: int = 2,
+        rack_number: str | None = None,
     ) -> RackResponse:
         chamber = await self.chamber_repo.get_by_id(chamber_id)
         if chamber is None:
@@ -309,32 +311,43 @@ class WarehouseService:
                     "Rack number already exists in this chamber"
                 )
 
-        if slots_per_rack < 1 or slots_per_rack > 100:
-            raise ValueError("slots_per_rack must be between 1 and 100")
+        if bays_per_rack < 1 or bays_per_rack > 100:
+            raise ValueError("bays_per_rack must be between 1 and 100")
+        if levels_per_rack < 1 or levels_per_rack > 100:
+            raise ValueError("levels_per_rack must be between 1 and 100")
 
         rack = Rack(chamber_id=chamber_id, rack_number=rack_number)
         try:
             rack = await self.rack_repo.create(rack)
-            for j in range(1, slots_per_rack + 1):
-                slot = Slot(
-                    rack_id=rack.id,
-                    slot_number=f"S{j:02d}",
-                    is_occupied=False,
-                )
-                await self.slot_repo.create(slot)
+            for bay in range(1, bays_per_rack + 1):
+                for level in range(1, levels_per_rack + 1):
+                    location_code = (
+                        f"{chamber.code}-{rack.rack_number}"
+                        f"-B{bay:02d}-L{level:02d}"
+                    )
+                    slot = Slot(
+                        rack_id=rack.id,
+                        bay=bay,
+                        level=level,
+                        depth=1,
+                        location_code=location_code,
+                        status=SlotStatus.AVAILABLE,
+                    )
+                    await self.slot_repo.create(slot)
         except IntegrityError as e:
             logger.error(f"Integrity error adding rack {rack_number}: {e}")
             raise WarehouseDuplicateError("Rack already exists") from e
 
-        # reload with chamber for full_code
         rack = await self.rack_repo.get_with_chamber(rack.id)
-        assert rack is not None
+        if rack is None:
+            raise WarehouseNotFoundError("Rack not found after creation")
+        total_slots = bays_per_rack * levels_per_rack
         return RackResponse(
             id=rack.id,
             chamber_id=rack.chamber_id,
             rack_number=rack.rack_number,
             full_code=rack.full_code,
-            slot_count=slots_per_rack,
+            slot_count=total_slots,
             occupied_count=0,
             status=rack.status,
             created_at=rack.created_at,
@@ -377,7 +390,7 @@ class WarehouseService:
         slot = await self.slot_repo.get_by_id(slot_id)
         if slot is None:
             raise WarehouseNotFoundError("Slot not found")
-        if slot.is_occupied:
+        if slot.status == SlotStatus.OCCUPIED:
             raise WarehouseConflictError(
                 "Slot is occupied, clear goods before deletion"
             )
@@ -387,22 +400,15 @@ class WarehouseService:
             raise WarehouseNotFoundError("Slot not found")
 
     def _to_slot_response(self, slot: Slot) -> SlotResponse:
-        if not slot.is_occupied:
-            occupancy: str = "empty"
-            quantity: float | None = None
-        else:
-            occupancy = "filled"
-            quantity = 1.0
-
         return SlotResponse(
             id=slot.id,
             rack_id=slot.rack_id,
-            slot_number=slot.slot_number,
-            full_code=slot.full_code,
-            occupancy=occupancy,  # type: ignore[arg-type]
-            is_occupied=slot.is_occupied,
+            bay=slot.bay,
+            level=slot.level,
+            depth=slot.depth,
+            location_code=slot.location_code,
+            status=slot.status,
             allocated_client_id=slot.allocated_client_id,
-            quantity=quantity,
             created_at=slot.created_at,
             updated_at=slot.updated_at,
         )

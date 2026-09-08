@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
@@ -24,16 +23,23 @@ class UserRole(StrEnum):
 class User(Base):
     __tablename__: str = "users"
 
+    __table_args__ = (
+        # Optional DB-level safeguard ensuring client users link to a client entity
+        CheckConstraint(
+            "(role = 'client' AND client_id IS NOT NULL) OR (role != 'client')",
+            name="chk_user_client_role_has_client_id",
+        ),
+    )
+
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
         primary_key=True,
-        index=True,
         default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
     )
     client_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
         ForeignKey("clients.id", ondelete="CASCADE"),
         nullable=True,
+        index=True,
     )
     email: Mapped[str] = mapped_column(
         String(255),
@@ -54,13 +60,14 @@ class User(Base):
         nullable=True,
     )
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole),
+        Enum(UserRole, native_enum=False, length=20),
         nullable=False,
         default=UserRole.CLIENT,
+        server_default=text("'client'"),  # Properly quoted for SQL string default
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean,
         default=True,
+        server_default=text("true"),
         nullable=False,
     )
     last_login: Mapped[datetime | None] = mapped_column(
@@ -69,17 +76,18 @@ class User(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
+        server_default=func.now(),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 
-    client: Mapped["Client"] = relationship(
+    # Relationships
+    client: Mapped[Client | None] = relationship(
         "Client",
         back_populates="users",
     )
@@ -96,6 +104,5 @@ class User(Base):
     def is_operator(self) -> bool:
         return self.role == UserRole.OPERATOR
 
-    @override
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, email={self.email}, name={self.full_name}, role={self.role}>"
+        return f"<User(id={self.id}, email={self.email}, role={self.role})>"

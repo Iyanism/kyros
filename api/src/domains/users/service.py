@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -16,41 +17,54 @@ from src.domains.users.schema import (
 
 
 class UserNotFoundError(Exception):
-    pass
+    """Raised when a requested user entity does not exist."""
+
+
+class UserAlreadyExistsError(Exception):
+    """Raised when attempting to create/update a user with a duplicate email."""
 
 
 class UserService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession) -> None:
         self.db: AsyncSession = db
         self.repo: UserRepository = UserRepository(db)
 
     async def get_by_id(self, user_id: UUID) -> UserResponse:
         user = await self.repo.get_by_id(user_id)
         if user is None:
-            raise UserNotFoundError(f"No user with user_id {user_id} found")
-
+            raise UserNotFoundError(f"User with ID '{user_id}' not found.")
         return UserResponse.model_validate(user)
 
     async def get_by_email(self, user_email: str) -> User:
         user = await self.repo.get_by_email(user_email)
         if user is None:
-            raise UserNotFoundError(f"No user with user_email {user_email} found")
+            raise UserNotFoundError(f"User with email '{user_email}' not found.")
         return user
 
     async def create(self, user_data: UserCreate) -> UserClientResponse:
         existing = await self.repo.get_by_email(user_data.email)
         if existing is not None:
-            raise ValueError("User with this email already exist.")
+            raise UserAlreadyExistsError(
+                f"User with email '{user_data.email}' already exists."
+            )
 
-        user_data.password_hash = hash_password(user_data.password_hash)
+        # Convert DTO to dict and transform password -> password_hash
+        payload = user_data.model_dump()
+        raw_password = payload.pop("password")
+        payload["password_hash"] = hash_password(raw_password)
 
-        user: User = User(**user_data.model_dump())
+        user_entity = User(**payload)
+
         try:
-            user = await self.repo.create(user)
-        except IntegrityError:
-            raise ValueError("A user with this email already exists")
+            user = await self.repo.create(user_entity)
+        except IntegrityError as exc:
+            await self.db.rollback()
+            raise UserAlreadyExistsError(
+                f"User with email '{user_data.email}' already exists."
+            ) from exc
         except Exception:
-            logger.info("DataBase Error during creation of use")
+            await self.db.rollback()
+            logger.exception("Database error occurred during user creation.")
             raise
 
         logger.info(
@@ -58,54 +72,52 @@ class UserService:
         )
         return UserClientResponse.model_validate(user)
 
+    async def list_all(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UserClientResponse]:
+        users = await self.repo.list_all(limit=limit, offset=offset)
+        return [UserClientResponse.model_validate(user) for user in users]
+
     async def delete(self, user_id: UUID) -> None:
         deleted = await self.repo.delete(user_id)
         if not deleted:
             raise UserNotFoundError(f"No user with user_id {user_id} found")
 
-    async def list(self) -> list[UserClientResponse]:
-        users = await self.repo.list_all()
-        if not users:
-            raise UserNotFoundError("No users found")
-        logger.info("Sending List of Users details")
-        return [UserClientResponse.model_validate(user) for user in users]
+    async def update(self, user_id: UUID, update_data: UserUpdate) -> UserResponse:
+        payload = update_data.model_dump(exclude_unset=True)
 
-    async def update(self, user_id: UUID, update_date: UserUpdate) -> UserResponse:
+        if "password" in payload:
+            raw_password = payload.pop("password")
+            payload["password_hash"] = hash_password(raw_password)
+
         try:
-            if update_date.password_hash:
-                update_date.password_hash = hash_password(update_date.password_hash)
+            user = await self.repo.update(user_id, payload)
+        except IntegrityError as exc:
+            await self.db.rollback()
+            raise UserAlreadyExistsError(
+                "Email is already taken by another account."
+            ) from exc
 
-            user = await self.repo.update(
-                user_id, update_date.model_dump(exclude_unset=True)
-            )
-            if user is None:
-                raise UserNotFoundError(f"No user with user id {user_id} found")
-        except Exception as e:
-            logger.error(
-                f"Error updating details of user with user id {user_id} and name {update_date.full_name}: {e}"
-            )
-            raise
+        if user is None:
+            raise UserNotFoundError(f"User with ID '{user_id}' not found.")
 
         logger.info(
-            f"Details updated: id:{user_id} email:{user.email} role:{user.role}"
+            "User updated: id=%s email=%s role=%s", user_id, user.email, user.role
         )
         return UserResponse.model_validate(user)
 
     async def toggle_status(self, user_id: UUID) -> UserClientResponse:
         user = await self.repo.toggle_status(user_id)
         if user is None:
-            raise UserNotFoundError(f"No user with user id {user_id} found")
+            raise UserNotFoundError(f"User with ID '{user_id}' not found.")
 
-        logger.info(
-            "User status toggled: id=%s email=%s is_active=%s",
-            user.id,
-            user.email,
-            user.is_active,
-        )
+        logger.info("User status toggled: id=%s is_active=%s", user.id, user.is_active)
         return UserClientResponse.model_validate(user)
 
     async def update_last_login(self, user_id: UUID) -> None:
         try:
-            await self.repo.update_last_login(user_id)
-        except Exception as e:
-            logger.error(f"Error updating last login for user {user_id}: {e}")
+            await self.repo.update_last_login(user_id, login_time=datetime.now(UTC))
+        except Exception:
+            logger.exception(
+                "Failed to update last_login timestamp for user %s", user_id
+            )

@@ -1,4 +1,5 @@
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -53,11 +54,13 @@ class ClientRepository:
         return True
 
     async def update(
-        self, client_id: UUID, updated_data: Mapping[str, UUID | str | int]
+        self, client_id: UUID, updated_data: dict[str, Any]
     ) -> Client | None:
         client: Client | None = await self.get_by_id(client_id)
         if client is None:
             return None
+
+        updated_data.pop("id", None)
 
         for field, value in updated_data.items():
             setattr(client, field, value)
