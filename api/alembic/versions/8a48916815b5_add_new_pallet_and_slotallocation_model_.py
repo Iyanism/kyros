@@ -5,13 +5,13 @@ Revises: aad4dbbe478c
 Create Date: 2026-09-02 17:40:02.872427
 
 """
+
 from typing import Sequence, Union
 
 
-
 # revision identifiers, used by Alembic.
-revision: str = '8a48916815b5'
-down_revision: Union[str, Sequence[str], None] = 'aad4dbbe478c'
+revision: str = "8a48916815b5"
+down_revision: Union[str, Sequence[str], None] = "aad4dbbe478c"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
