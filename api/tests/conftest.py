@@ -3,11 +3,13 @@ from collections.abc import AsyncGenerator, Mapping
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import NullPool
+from sqlalchemy import NullPool, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.core.config import settings
 from src.core.database import Base, get_db
+from src.core.security import hash_password
+from src.domains.users.model import User, UserRole
 from src.main import app
 
 test_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool, echo=False)
@@ -46,28 +48,34 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture(scope="session")
 async def auth_token() -> str:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        register_payload = {
-            "client": {
-                "name": "Auth Co",
-                "email": f"auth{uuid.uuid4().hex[:8]}@example.com",
-                "phone_number": "9000000000",
-                "address": "Auth Address",
-                "city": "Pune",
-                "state": "Maharashtra",
-                "pin_code": 411001,
-                "gstin": "27AABCA1234F5GB",
-            },
-            "user": {
-                "email": f"authuser{uuid.uuid4().hex[:8]}@gmail.com",
-                "password_hash": "secret123",
-                "full_name": "Auth User",
-                "phone_number": "9000000001",
-            },
-        }
-        response = await client.post("/auth/register", json=register_payload)
-        assert response.status_code == 201
-        return response.json()["login_info"]["access_token"]
+    async with AsyncClient(transport=transport, base_url="http://test") as http:
+        async with TestAsyncSessionLocal() as session:
+            existing = await session.execute(
+                select(User).where(User.email == "admin_user@test.com")
+            )
+            existing_user = existing.scalar_one_or_none()
+            if existing_user:
+                await session.delete(existing_user)
+                await session.commit()
+
+            user = User(
+                email="admin_user@test.com",
+                password_hash=hash_password("secret123"),
+                full_name="Admin User",
+                phone_number="9000000001",
+                role=UserRole.ADMIN,
+                is_active=True,
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+
+        login_response = await http.post(
+            "/auth/login",
+            json={"email": "admin_user@test.com", "password": "secret123"},
+        )
+        assert login_response.status_code == 200
+        return login_response.json()["access_token"]
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ from typing import Any
 
 from httpx import AsyncClient
 
-from src.domains.warehouse.model import Slot
+from src.domains.warehouse.model import Slot, SlotStatus
 from tests.conftest import TestAsyncSessionLocal
 
 
@@ -17,7 +17,8 @@ def _chamber_payload(
         "category": "frozen",
         "temperature": -25.0,
         "num_racks": 2,
-        "slots_per_rack": 3,
+        "bays_per_rack": 3,
+        "levels_per_rack": 1,
     }
     return payload
 
@@ -54,7 +55,7 @@ async def _mark_slot_occupied(slot_id: str) -> None:
     async with TestAsyncSessionLocal() as session:
         slot = await session.get(Slot, uuid.UUID(slot_id))
         assert slot is not None
-        slot.is_occupied = True
+        slot.status = SlotStatus.OCCUPIED
         await session.commit()
 
 
@@ -71,9 +72,10 @@ class TestWarehouseRoute:
         assert body["code"] == payload["code"]
         assert body["name"] == payload["name"]
         num_racks = int(payload["num_racks"])
-        slots_per_rack = int(payload["slots_per_rack"])
+        bays = int(payload["bays_per_rack"])
+        levels = int(payload["levels_per_rack"])
         assert body["total_racks"] == num_racks
-        assert body["total_slots"] == num_racks * slots_per_rack
+        assert body["total_slots"] == num_racks * bays * levels
         assert body["total_capacity"] == float(body["total_slots"])
         assert body["used_capacity"] == 0.0
 
@@ -111,13 +113,14 @@ class TestWarehouseRoute:
         racks: list[dict[str, Any]] = body["racks"]
         assert len(racks) == payload["num_racks"]
         first: dict[str, Any] = racks[0]
-        assert len(first["slots"]) == payload["slots_per_rack"]
+        expected_slots = int(payload["bays_per_rack"]) * int(payload["levels_per_rack"])
+        assert len(first["slots"]) == expected_slots
         slot: dict[str, Any] = first["slots"][0]
-        assert slot["occupancy"] == "empty"
-        # full codes are computed server-side: CHxx-R01-S01
+        assert slot["status"] == "available"
+        # location_code format: CHxx-R01-B01-L01
         assert (
-            slot["full_code"]
-            == f"{body['code']}-{first['rack_number']}-{slot['slot_number']}"
+            slot["location_code"]
+            == f"{body['code']}-{first['rack_number']}-B01-L01"
         )
 
     async def test_get_chamber_detail(self, authed_client: AsyncClient) -> None:
@@ -131,7 +134,9 @@ class TestWarehouseRoute:
         assert len(racks) == body["total_racks"]
         total_slots = sum(len(r["slots"]) for r in racks)
         assert total_slots == body["total_slots"]
-        assert all(slot["is_occupied"] is False for r in racks for slot in r["slots"])
+        assert all(
+            slot["status"] == "available" for r in racks for slot in r["slots"]
+        )
 
     async def test_get_chamber_detail_not_found(
         self, authed_client: AsyncClient
@@ -192,7 +197,7 @@ class TestWarehouseRoute:
         chamber = await _create_chamber(authed_client)
         chamber_id: str = chamber["id"]
         resp = await authed_client.post(
-            f"/warehouses/chambers/{chamber_id}/racks?slots_per_rack=4"
+            f"/warehouses/chambers/{chamber_id}/racks?bays_per_rack=4&levels_per_rack=1"
         )
         assert resp.status_code == 201
         body: dict[str, Any] = resp.json()
@@ -206,7 +211,7 @@ class TestWarehouseRoute:
         chamber = await _create_chamber(authed_client)
         chamber_id: str = chamber["id"]
         resp = await authed_client.post(
-            f"/warehouses/chambers/{chamber_id}/racks?rack_number=R01&slots_per_rack=2"
+            f"/warehouses/chambers/{chamber_id}/racks?rack_number=R01&bays_per_rack=2&levels_per_rack=1"
         )
         assert resp.status_code == 409
         detail: dict[str, Any] = resp.json()["detail"]
@@ -221,9 +226,8 @@ class TestWarehouseRoute:
         slots: list[dict[str, Any]] = resp.json()
         assert len(slots) == 3
         first: dict[str, Any] = slots[0]
-        assert first["occupancy"] == "empty"
-        assert first["is_occupied"] is False
-        assert isinstance(first["full_code"], str)
+        assert first["status"] == "available"
+        assert isinstance(first["location_code"], str)
 
     async def test_get_slot(self, authed_client: AsyncClient) -> None:
         chamber = await _create_chamber(authed_client)
@@ -275,12 +279,13 @@ class TestWarehouseRoute:
     async def test_delete_rack_ok(self, authed_client: AsyncClient) -> None:
         payload = _chamber_payload()
         payload["num_racks"] = 1
-        payload["slots_per_rack"] = 2
+        payload["bays_per_rack"] = 2
+        payload["levels_per_rack"] = 1
         chamber = await _create_chamber(authed_client, payload)
         chamber_id: str = chamber["id"]
         # add extra rack so delete does not wipe chamber
         extra = await authed_client.post(
-            f"/warehouses/chambers/{chamber_id}/racks?slots_per_rack=2"
+            f"/warehouses/chambers/{chamber_id}/racks?bays_per_rack=2&levels_per_rack=1"
         )
         assert extra.status_code == 201
         extra_body: dict[str, Any] = extra.json()
@@ -309,7 +314,7 @@ class TestWarehouseRoute:
         get_resp = await authed_client.get(f"/warehouses/chambers/{chamber_id}")
         assert get_resp.status_code == 404
 
-    async def test_full_code_format(self, authed_client: AsyncClient) -> None:
+    async def test_location_code_format(self, authed_client: AsyncClient) -> None:
         payload = _chamber_payload()
         chamber = await _create_chamber(authed_client, payload)
         chamber_id: str = chamber["id"]
@@ -320,10 +325,11 @@ class TestWarehouseRoute:
         slot_resp = await authed_client.get(f"/warehouses/racks/{rack['id']}/slots")
         slots: list[dict[str, Any]] = slot_resp.json()
         slot: dict[str, Any] = slots[0]
-        # e.g. CAbc-R01 , CAbc-R01-S01
+        # e.g. CAbc-R01 , CAbc-R01-B01-L01
         rack_full_code: str = rack["full_code"]
-        slot_full_code: str = slot["full_code"]
+        slot_location_code: str = slot["location_code"]
         rack_number: str = rack["rack_number"]
-        slot_number: str = slot["slot_number"]
+        bay: int = slot["bay"]
+        level: int = slot["level"]
         assert rack_full_code.startswith(f"{code}-R")
-        assert slot_full_code == f"{code}-{rack_number}-{slot_number}"
+        assert slot_location_code == f"{code}-{rack_number}-B{bay:02d}-L{level:02d}"

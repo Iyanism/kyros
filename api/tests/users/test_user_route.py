@@ -99,7 +99,9 @@ class TestUserRoute:
         )
         assert response.status_code == 401
 
-    async def test_deactivated_user_rejected(self, client: AsyncClient):
+    async def test_deactivated_user_rejected(
+        self, client: AsyncClient, authed_client: AsyncClient
+    ):
         register_payload = {
             "client": {
                 "name": "Blocked Co",
@@ -121,10 +123,10 @@ class TestUserRoute:
         assert registration.status_code == 201
         token = registration.json()["login_info"]["access_token"]
         user_id = registration.json()["user"]["id"]
-        headers = {"Authorization": f"Bearer {token}"}
+        blocked_headers = {"Authorization": f"Bearer {token}"}
 
-        deactivate = await client.patch(f"/users/{user_id}/status", headers=headers)
+        deactivate = await authed_client.patch(f"/users/{user_id}/status")
         assert deactivate.status_code == 200
 
-        response = await client.get("/users", headers=headers)
+        response = await client.get("/auth/me", headers=blocked_headers)
         assert response.status_code == 403

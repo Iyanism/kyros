@@ -11,23 +11,21 @@ def _order_payload(client_id: str) -> dict[str, Any]:
     return {
         "client_id": client_id,
         "vehicle_number": "MH12AB1234",
-        "total_quantity": 10,
+        "total_quantity": 10.0,
         "items": [
             {
                 "product_name": "Potato",
-                "quantity": 6,
-                "unit": "kg",
+                "quantity": 6.0,
                 "temperature_category": "frozen",
-                "batch_number": None,
-                "expiry_date": None,
+                "batch_number": "POT-2026-001",
+                "expiry_date": "2027-06-30T00:00:00Z",
             },
             {
                 "product_name": "Onion",
-                "quantity": 4,
-                "unit": "kg",
+                "quantity": 4.0,
                 "temperature_category": "chilled",
-                "batch_number": None,
-                "expiry_date": None,
+                "batch_number": "ONI-2026-002",
+                "expiry_date": "2027-03-15T00:00:00Z",
             },
         ],
     }
@@ -54,7 +52,7 @@ class TestInboundOrderRoute:
         order = await self._create_order(authed_client, created_client["id"])
         assert order["client_id"] == created_client["id"]
         assert order["vehicle_number"] == "MH12AB1234"
-        assert order["total_quantity"] == 10
+        assert order["total_quantity"] == 10.0
         assert order["status"] == "submitted"
         assert len(order["items"]) == 2
         assert order["items"][0]["product_name"] == "Potato"
