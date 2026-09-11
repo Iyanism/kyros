@@ -17,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
+from src.core.base import Base, CreatedAtMixin, TimestampMixin
 from src.domains.warehouse.model import ChamberCategory
 
 if TYPE_CHECKING:
@@ -32,15 +32,9 @@ class PalletStatus(StrEnum):
     DISPATCHED = "dispatched"
 
 
-class Pallet(Base):
+class Pallet(Base, TimestampMixin):
     __tablename__: str = "pallets"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("clients.id", ondelete="CASCADE"),
@@ -102,18 +96,6 @@ class Pallet(Base):
         nullable=False,
         default=PalletStatus.ALLOCATED,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-
     allocations: Mapped[list["SlotAllocation"]] = relationship(
         "SlotAllocation",
         back_populates="pallet",
@@ -132,12 +114,6 @@ class Pallet(Base):
 class SlotAllocation(Base):
     __tablename__: str = "slot_allocations"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("inbound_orders.id", ondelete="CASCADE"),
@@ -174,14 +150,8 @@ class SlotAllocation(Base):
     slot: Mapped["Slot"] = relationship("Slot")
 
 
-class PickList(Base):
+class PickList(Base, CreatedAtMixin):
     __tablename__: str = "pick_lists"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     outbound_order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("outbound_orders.id", ondelete="CASCADE"),
@@ -207,11 +177,6 @@ class PickList(Base):
         Float,
         nullable=False,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
     pick_records: Mapped[list["PickRecord"]] = relationship(
         "PickRecord",
         back_populates="pick_list",
@@ -224,12 +189,6 @@ class PickList(Base):
 
 class PickRecord(Base):
     __tablename__: str = "pick_records"
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     pick_list_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("pick_lists.id", ondelete="CASCADE"),

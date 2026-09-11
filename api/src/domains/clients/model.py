@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, override
 
-from sqlalchemy import Boolean, DateTime, Integer, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
+from src.core.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from src.domains.inbound_orders.model import InboundOrder
@@ -17,15 +14,9 @@ if TYPE_CHECKING:
     from src.domains.users.model import User
 
 
-class Client(Base):
+class Client(Base, TimestampMixin):
     __tablename__: str = "clients"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     name: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -64,17 +55,6 @@ class Client(Base):
         Boolean,
         nullable=False,
         default=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
     )
 
     users: Mapped[list["User"]] = relationship(

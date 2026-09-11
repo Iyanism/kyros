@@ -25,7 +25,9 @@ def upgrade() -> None:
     op.add_column('slots', sa.Column('level', sa.Integer(), nullable=True))
     op.add_column('slots', sa.Column('depth', sa.Integer(), server_default='1', nullable=True))
     op.add_column('slots', sa.Column('location_code', sa.String(length=50), nullable=True))
-    op.add_column('slots', sa.Column('status', sa.Enum('available', 'reserved', 'occupied', 'maintenance', name='slotstatus'), server_default='available', nullable=True))
+    slot_enum = sa.Enum('available', 'reserved', 'occupied', 'maintenance', name='slotstatus')
+    slot_enum.create(op.get_bind(), checkfirst=True)
+    op.add_column('slots', sa.Column('status', slot_enum, server_default='available', nullable=True))
 
     # Migrate existing data: parse slot_number (S01 -> bay=1, level=1)
     op.execute("""
@@ -34,7 +36,7 @@ def upgrade() -> None:
             level = 1,
             depth = 1,
             location_code = 'UNKNOWN',
-            status = CASE WHEN is_occupied THEN 'occupied' ELSE 'available' END
+            status = CASE WHEN is_occupied THEN 'occupied'::slotstatus ELSE 'available'::slotstatus END
     """)
 
     # Make columns non-nullable

@@ -5,10 +5,10 @@ from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, String, func, text
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
+from src.core.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from src.domains.clients.model import Client
@@ -20,7 +20,7 @@ class UserRole(StrEnum):
     CLIENT = "client"
 
 
-class User(Base):
+class User(Base, TimestampMixin):
     __tablename__: str = "users"
 
     __table_args__ = (
@@ -29,12 +29,6 @@ class User(Base):
             "(role = 'client' AND client_id IS NOT NULL) OR (role != 'client')",
             name="chk_user_client_role_has_client_id",
         ),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True,
-        default=uuid.uuid4,
-        server_default=func.gen_random_uuid(),
     )
     client_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("clients.id", ondelete="CASCADE"),
@@ -73,17 +67,6 @@ class User(Base):
     last_login: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
     )
 
     # Relationships

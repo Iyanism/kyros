@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import UUID, DateTime, Enum, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
+from src.core.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from src.domains.clients.model import Client
@@ -27,15 +27,9 @@ class OrderRequestStatus(StrEnum):
     STORED = "stored"
 
 
-class InboundOrder(Base):
+class InboundOrder(Base, TimestampMixin):
     __tablename__: str = "inbound_orders"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("clients.id", ondelete="CASCADE"),
@@ -54,18 +48,6 @@ class InboundOrder(Base):
         default=OrderRequestStatus.SUBMITTED,
         nullable=False,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-
     client: Mapped["Client"] = relationship(
         "Client",
         back_populates="inbound_orders",
@@ -81,12 +63,6 @@ class InboundOrder(Base):
 class InboundOrderItem(Base):
     __tablename__: str = "inbound_order_items"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     order_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("inbound_orders.id", ondelete="CASCADE"),

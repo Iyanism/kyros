@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from enum import StrEnum
 from typing import override
 
 from sqlalchemy import (
-    DateTime,
     Enum,
     Float,
     ForeignKey,
@@ -18,7 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
+from src.core.base import Base, TimestampMixin
 
 
 class ChamberStatus(StrEnum):
@@ -47,15 +45,9 @@ class SlotStatus(StrEnum):
     MAINTENANCE = "maintenance"
 
 
-class Chamber(Base):
+class Chamber(Base, TimestampMixin):
     __tablename__: str = "chambers"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     name: Mapped[str] = mapped_column(
         String(50),
         unique=True,
@@ -81,17 +73,6 @@ class Chamber(Base):
         nullable=False,
         default=ChamberStatus.ACTIVE,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
-    )
 
     racks: Mapped[list["Rack"]] = relationship(
         back_populates="chamber", cascade="all, delete-orphan"
@@ -111,18 +92,12 @@ class Chamber(Base):
         )
 
 
-class Rack(Base):
+class Rack(Base, TimestampMixin):
     __tablename__: str = "racks"
     __table_args__ = (
         UniqueConstraint("chamber_id", "rack_number", name="unique_chamber_rack"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     chamber_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("chambers.id", ondelete="CASCADE"),
@@ -138,18 +113,6 @@ class Rack(Base):
         nullable=False,
         default=RackStatus.ACTIVE,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-
     chamber: Mapped[Chamber] = relationship(back_populates="racks")
     slots: Mapped[list["Slot"]] = relationship(
         back_populates="rack", cascade="all, delete-orphan"
@@ -169,19 +132,12 @@ class Rack(Base):
         )
 
 
-class Slot(Base):
+class Slot(Base, TimestampMixin):
     __tablename__: str = "slots"
     __table_args__ = (
         UniqueConstraint("rack_id", "bay", "level", "depth", name="unique_rack_slot"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        nullable=False,
-        index=True,
-        default=uuid.uuid4,
-    )
     rack_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("racks.id", ondelete="CASCADE"),
@@ -216,18 +172,6 @@ class Slot(Base):
         ForeignKey("clients.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
-    )
-
     rack: Mapped[Rack] = relationship(back_populates="slots")
 
     @override

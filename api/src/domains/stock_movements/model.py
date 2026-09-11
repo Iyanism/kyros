@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, DateTime, Enum, Float, ForeignKey, UniqueConstraint
+from sqlalchemy import UUID, DateTime, Enum, Float, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
+from src.core.base import Base, CreatedAtMixin
 
 if TYPE_CHECKING:
     from src.domains.inventory.model import Pallet
@@ -22,15 +20,9 @@ class MovementType(StrEnum):
     ADJUSTMENT = "adjustment"
 
 
-class StockMovement(Base):
+class StockMovement(Base, CreatedAtMixin):
     __tablename__ = "stock_movements"
 
-    id = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     pallet_id = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("pallets.id", ondelete="CASCADE"),
@@ -56,11 +48,6 @@ class StockMovement(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-    )
 
     pallet: Mapped["Pallet"] = relationship("Pallet")
     slot: Mapped["Slot"] = relationship("Slot")
@@ -73,12 +60,6 @@ class StockLevel(Base):
         UniqueConstraint("pallet_id", "slot_id", name="uq_stock_level_pallet_slot"),
     )
 
-    id = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=uuid.uuid4,
-    )
     pallet_id = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("pallets.id", ondelete="CASCADE"),
@@ -95,8 +76,8 @@ class StockLevel(Base):
     weight_mt = mapped_column(Float, nullable=False, default=0.0)
     updated_at = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 
