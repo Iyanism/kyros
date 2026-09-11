@@ -1,8 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
+import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHash, VerificationError
-from jose import ExpiredSignatureError, JWTError, jwt
+from argon2.exceptions import HashingError, InvalidHash, VerificationError, VerifyMismatchError
+from jwt import ExpiredSignatureError, PyJWTError
 
 from src.core.config import settings
 from src.core.logger import logger
@@ -13,86 +14,56 @@ ph = PasswordHasher()
 def hash_password(password: str) -> str:
     try:
         return ph.hash(password)
-    except Exception as e:
-        logger.error(f"Password hashing failed: {str(e)}", exc_info=True)
+    except HashingError as e:
+        logger.error("Password hashing failed: %s", e, exc_info=True)
         raise RuntimeError("Unable to process password") from e
 
 
 def verify_password(password: str, hash_password: str) -> bool:
     try:
         return ph.verify(hash_password, password)
-
-    except VerificationError:
+    except VerifyMismatchError:
         logger.warning("Invalid password attempt")
         return False
-
-    except InvalidHash:
-        logger.error("Invalid hash format in database")
-        return False
-
-    except Exception as e:
-        logger.error(f"Password verification error: {str(e)}")
+    except (VerificationError, InvalidHash) as e:
+        logger.error("Password verification error: %s", e)
         return False
 
 
 def create_access_token(data: dict[str, object]) -> str:
-    to_encode = data.copy()
-    expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-
-    to_encode.update({"exp": expire})
-    try:
-        encode_jwt = jwt.encode(
-            to_encode,
-            settings.JWT_SECRET_KEY.get_secret_value(),
-            settings.JWT_ALGORITHM,
-        )
-
-        return encode_jwt
-    except JWTError as e:
-        logger.error(f"Token creation failed: {str(e)}")
-        raise RuntimeError("Failed to create access token") from e
-    except Exception as e:
-        logger.error(f"Token creation failed: {str(e)}")
-        raise
+    return _create_token(
+        data=data,
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        secret=settings.ACCESS_TOKEN_SECRET_KEY.get_secret_value(),
+        token_type="access",
+    )
 
 
 def verify_access_token(token: str) -> dict[str, object] | None:
     try:
         payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY.get_secret_value(), settings.JWT_ALGORITHM
+            token,
+            settings.ACCESS_TOKEN_SECRET_KEY.get_secret_value(),
+            settings.JWT_ALGORITHM,
         )
 
         return payload
 
     except ExpiredSignatureError:
         logger.warning("Token has expired")
-    except JWTError as e:
-        logger.warning(f"Token verification failed: {str(e)}")
         return None
-    except Exception as e:
-        logger.error(f"Unexpected token error: {str(e)}")
+    except PyJWTError as e:
+        logger.warning("Token verification failed: %s", e)
         return None
 
 
 def create_refresh_token(data: dict[str, object]) -> str:
-    to_encode = data.copy()
-    expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-
-    to_encode.update({"exp": expire, "type": "refresh"})
-    try:
-        encode_jwt = jwt.encode(
-            to_encode,
-            settings.REFRESH_TOKEN_SECRET_KEY.get_secret_value(),
-            settings.JWT_ALGORITHM,
-        )
-
-        return encode_jwt
-    except JWTError as e:
-        logger.error(f"Refresh token creation failed: {str(e)}")
-        raise RuntimeError("Failed to create refresh token") from e
-    except Exception as e:
-        logger.error(f"Refresh token creation failed: {str(e)}")
-        raise
+    return _create_token(
+        data=data,
+        expires_delta=timedelta(settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        secret=settings.REFRESH_TOKEN_SECRET_KEY.get_secret_value(),
+        token_type="refresh",
+    )
 
 
 def verify_refresh_token(token: str) -> dict[str, object] | None:
@@ -111,9 +82,25 @@ def verify_refresh_token(token: str) -> dict[str, object] | None:
 
     except ExpiredSignatureError:
         logger.warning("Refresh token has expired")
-    except JWTError as e:
-        logger.warning(f"Refresh token verification failed: {str(e)}")
         return None
-    except Exception as e:
-        logger.error(f"Unexpected refresh token error: {str(e)}")
+    except PyJWTError as e:
+        logger.warning("Refresh token verification failed: %s", e)
         return None
+
+
+def _create_token(
+    data: dict[str, object], expires_delta: timedelta, secret: str, token_type: str
+) -> str:
+    to_encode = data.copy()
+    to_encode["exp"] = datetime.now(UTC) + expires_delta
+    to_encode["type"] = token_type
+
+    try:
+        return jwt.encode(
+            payload=to_encode,
+            key=secret,
+            algorithm=settings.JWT_ALGORITHM,
+        )
+    except PyJWTError as e:
+        logger.error("Token creation failed: %s", e)
+        raise RuntimeError("Failed to create token") from e
