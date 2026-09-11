@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -12,6 +13,12 @@ from src.core.security import verify_access_token
 from src.domains.users.model import User, UserRole
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+@dataclass
+class ClientContext:
+    client_id: uuid.UUID | None
+    is_staff: bool
 
 
 async def get_current_user(
@@ -63,6 +70,16 @@ def require_role(*allowed_roles: UserRole):
         return current_user
 
     return _check
+
+
+async def get_client_context(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ClientContext:
+    is_staff = current_user.role in (UserRole.ADMIN, UserRole.OPERATOR)
+    return ClientContext(
+        client_id=current_user.client_id if not is_staff else None,
+        is_staff=is_staff,
+    )
 
 
 def unauthorized_error() -> HTTPException:

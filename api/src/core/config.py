@@ -10,18 +10,22 @@ _ = load_dotenv()
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Cold Chain Management System"
-    APP_VERSION: str = "0.1.0"
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
-    DATABASE_URL: str = ""
-    DATABASE_POOL_SIZE: int = 10
-    DATABASE_MAX_OVERFLOW: int = 20
-    DATABASE_ECHO: bool = False
 
-    JWT_SECRET_KEY: SecretStr
-    JWT_ALGORITHM: str = "HS256"
+    # Database Configurations
+    DATABASE_URL: str = ""  # Database url
+    DATABASE_POOL_SIZE: int = 10  # Database session connection pool size
+    DATABASE_MAX_OVERFLOW: int = 20  # Maximum amount the connection pool size can grow
+    DATABASE_ECHO: bool = False  # If sqlalchemy debug log should be shown or not
+
+    # Jwt Configurations
+    JWT_ALGORITHM: str = "HS256"  # A Symetrical encryption algorithm
+
+    # Access token
+    ACCESS_TOKEN_SECRET_KEY: SecretStr
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Refresh token
     REFRESH_TOKEN_SECRET_KEY: SecretStr
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
