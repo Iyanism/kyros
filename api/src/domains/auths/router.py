@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +14,7 @@ from src.domains.auths.schema import (
     RegistrationRequest,
     RegistrationResponse,
 )
-from src.domains.auths.service import AuthenticationError, AuthService
+from src.domains.auths.service import AuthService
 from src.domains.users.model import User
 from src.domains.users.schema import UserResponse
 
@@ -43,31 +44,20 @@ def _set_auth_cookies(response: Response, login: LoginResponse) -> None:
     )
 
 
+def get_auth_service(db: Annotated[AsyncSession, Depends(get_db)]) -> AuthService:
+    return AuthService(db)
+
+
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 async def login_user(
     payload: LoginRequest,
     response: Response,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    service: AuthServiceDep,
 ):
-    service = AuthService(db)
-    try:
-        login = await service.login(payload)
-    except AuthenticationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "AUTHENTICATION ERROR",
-                "message": str(e),
-            },
-        ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "INTERNAL ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
+    login = await service.login(payload)
     _set_auth_cookies(response, login)
     return login
 
@@ -80,44 +70,18 @@ async def login_user(
 async def register_user(
     payload: RegistrationRequest,
     response: Response,
-    db: Annotated[AsyncSession, Depends(get_db)],
+    service: AuthServiceDep,
 ):
-    service = AuthService(db)
-    try:
-        registeration = await service.register(payload)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "VALIDATION_ERROR",
-                "message": str(e),
-                "field": getattr(e, "field", None),
-            },
-        ) from e
-    except AuthenticationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "AUTHENTICATION ERROR",
-                "message": str(e),
-            },
-        ) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "INTERNAL ERROR",
-                "message": f"unexpected error occurred: {str(e)}",
-            },
-        )
-    _set_auth_cookies(response, registeration.login_info)
-    return registeration
+    registration = await service.register(payload)
+    _set_auth_cookies(response, registration.login_info)
+    return registration
 
 
 @router.post("/refresh", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 async def refresh_token(
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
+    service: AuthServiceDep,
     refresh_token_cookie: Annotated[str | None, Cookie(alias="refresh_token")] = None,
 ):
     if refresh_token_cookie is None:
@@ -133,10 +97,8 @@ async def refresh_token(
             detail="Invalid or expired refresh token",
         )
 
-    import uuid
-
     try:
-        user_id = uuid.UUID(str(payload["sub"]))
+        user_id = UUID(str(payload["sub"]))
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -150,11 +112,8 @@ async def refresh_token(
             detail="User not found or inactive",
         )
 
-    from src.domains.users.schema import UserResponse
-
     user_response = UserResponse.model_validate(user)
-    service = AuthService(db)
-    access_token, new_refresh_token = await service.create_tokens(user_response)
+    access_token, new_refresh_token = service.create_tokens(user_response)
 
     login = LoginResponse(
         access_token=access_token,
@@ -173,7 +132,6 @@ async def refresh_token(
 async def logout_user(response: Response):
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token", path="/auth/refresh")
-    return None
 
 
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)

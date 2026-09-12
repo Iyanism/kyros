@@ -25,7 +25,7 @@ class LoginResponse(BaseModel):
 
 class RegisterUserInfo(BaseModel):
     email: EmailStr
-    password_hash: str
+    password: str
     full_name: str
     phone_number: str | None = None
 
