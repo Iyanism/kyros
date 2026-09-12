@@ -17,17 +17,17 @@ from src.domains.users.schema import (
 
 
 class UserNotFoundError(Exception):
-    """Raised when a requested user entity does not exist."""
+    pass
 
 
 class UserAlreadyExistsError(Exception):
-    """Raised when attempting to create/update a user with a duplicate email."""
+    pass
 
 
 class UserService:
     def __init__(self, db: AsyncSession) -> None:
-        self.db: AsyncSession = db
-        self.repo: UserRepository = UserRepository(db)
+        self.db = db
+        self.repo = UserRepository(db)
 
     async def get_by_id(self, user_id: UUID) -> UserResponse:
         user = await self.repo.get_by_id(user_id)
@@ -48,24 +48,18 @@ class UserService:
                 f"User with email '{user_data.email}' already exists."
             )
 
-        # Convert DTO to dict and transform password -> password_hash
         payload = user_data.model_dump()
         raw_password = payload.pop("password")
         payload["password_hash"] = hash_password(raw_password)
 
-        user_entity = User(**payload)
+        user_entity: User = User(**payload)
 
         try:
             user = await self.repo.create(user_entity)
         except IntegrityError as exc:
-            await self.db.rollback()
             raise UserAlreadyExistsError(
                 f"User with email '{user_data.email}' already exists."
             ) from exc
-        except Exception:
-            await self.db.rollback()
-            logger.exception("Database error occurred during user creation.")
-            raise
 
         logger.info(
             "User created: id=%s email=%s role=%s", user.id, user.email, user.role
@@ -73,7 +67,7 @@ class UserService:
         return UserClientResponse.model_validate(user)
 
     async def list_all(
-        self, limit: int = 100, offset: int = 0
+        self, limit: int = 10, offset: int = 0
     ) -> list[UserClientResponse]:
         users = await self.repo.list_all(limit=limit, offset=offset)
         return [UserClientResponse.model_validate(user) for user in users]
@@ -93,7 +87,6 @@ class UserService:
         try:
             user = await self.repo.update(user_id, payload)
         except IntegrityError as exc:
-            await self.db.rollback()
             raise UserAlreadyExistsError(
                 "Email is already taken by another account."
             ) from exc
@@ -115,9 +108,4 @@ class UserService:
         return UserClientResponse.model_validate(user)
 
     async def update_last_login(self, user_id: UUID) -> None:
-        try:
-            await self.repo.update_last_login(user_id, login_time=datetime.now(UTC))
-        except Exception:
-            logger.exception(
-                "Failed to update last_login timestamp for user %s", user_id
-            )
+        await self.repo.update_last_login(user_id, login_time=datetime.now(UTC))

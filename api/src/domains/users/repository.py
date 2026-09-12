@@ -1,5 +1,5 @@
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import MutableMapping, Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -13,7 +13,7 @@ class UserRepository:
     """Data access layer for User entities."""
 
     def __init__(self, db: AsyncSession) -> None:
-        self.db: AsyncSession = db
+        self.db = db
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         stmt = select(User).options(selectinload(User.client)).where(User.id == user_id)
@@ -32,6 +32,7 @@ class UserRepository:
     async def create(self, user: User) -> User:
         self.db.add(user)
         await self.db.flush()
+        await self.db.refresh(user)
         return user
 
     async def list_all(self, limit: int = 100, offset: int = 0) -> Sequence[User]:
@@ -45,7 +46,9 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
-    async def update(self, user_id: UUID, update_data: dict[str, Any]) -> User | None:
+    async def update(
+        self, user_id: UUID, update_data: MutableMapping[str, UUID | str | int]
+    ) -> User | None:
         user = await self.get_by_id(user_id)
         if user is None:
             return None
@@ -70,7 +73,7 @@ class UserRepository:
         await self.db.flush()
         return user
 
-    async def update_last_login(self, user_id: UUID, login_time: Any) -> None:
+    async def update_last_login(self, user_id: UUID, login_time: datetime) -> None:
         user = await self.get_by_id(user_id)
         if user is None:
             return

@@ -30,8 +30,8 @@ class ClientAlreadyExistsError(ClientError):
 
 class ClientService:
     def __init__(self, db: AsyncSession, repo: ClientRepository | None = None) -> None:
-        self.db: AsyncSession = db
-        self.repo: ClientRepository = repo or ClientRepository(db)
+        self.db = db
+        self.repo = repo or ClientRepository(db)
 
     async def get_by_id(self, client_id: UUID) -> ClientResponse:
         client = await self.repo.get_by_id(client_id)
@@ -51,18 +51,14 @@ class ClientService:
             raise ClientAlreadyExistsError(
                 f"Client with email '{client_data.email}' already exists."
             ) from e
-        except Exception as e:
-            logger.error(f"Database error during client creation: {e}", exc_info=True)
-            raise
 
         logger.info(
             f"Client created successfully: id={client.id}, email={client.email}"
         )
         return ClientResponse.model_validate(client)
 
-    async def list_all(self) -> list[ClientResponse]:
-        clients = await self.repo.list_all()
-        # Empty array is a valid 200 OK response
+    async def list_all(self, limit: int = 10, offset: int = 0) -> list[ClientResponse]:
+        clients = await self.repo.list_all(limit, offset)
         return [ClientResponse.model_validate(client) for client in clients]
 
     async def toggle_status(self, client_id: UUID) -> ClientResponse:
@@ -91,8 +87,6 @@ class ClientService:
             raise ClientAlreadyExistsError(
                 "Updated details conflict with an existing client record."
             ) from e
-        except ClientError:
-            raise
         except Exception as e:
             logger.error(f"Error updating client ID '{client_id}': {e}", exc_info=True)
             raise
