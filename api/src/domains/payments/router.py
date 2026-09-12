@@ -6,7 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user, require_role
+from src.core.dependencies import ClientContext, get_client_context, require_role
 from src.core.logger import logger
 from src.domains.payments.schema import (
     ConfirmPaymentRequest,
@@ -19,7 +19,7 @@ from src.domains.users.model import UserRole
 router = APIRouter(
     prefix="/payments",
     tags=["Payments"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_client_context)],
 )
 
 
@@ -30,10 +30,21 @@ router = APIRouter(
 )
 async def create_payment(
     payload: CreatePaymentRequest,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = PaymentService(db)
     try:
+        if not ctx.is_staff:
+            from src.domains.invoicing.service import InvoiceService
+
+            invoice_service = InvoiceService(db)
+            invoice = await invoice_service.get_invoice(payload.invoice_id)
+            if invoice.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied",
+                )
         payment = await service.create_payment(
             invoice_id=payload.invoice_id,
             method=payload.method,
@@ -95,10 +106,15 @@ async def confirm_payment(
     response_model=list[PaymentDetailResponse],
     status_code=status.HTTP_200_OK,
 )
-async def list_payments(db: Annotated[AsyncSession, Depends(get_db)]):
+async def list_payments(
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     service = PaymentService(db)
     try:
-        return await service.list_payments()
+        if ctx.is_staff:
+            return await service.list_payments()
+        return await service.list_payments_by_client(ctx.client_id)
     except Exception as e:
         logger.error(f"Unexpected error listing payments: {e}")
         raise HTTPException(
@@ -116,11 +132,21 @@ async def list_payments(db: Annotated[AsyncSession, Depends(get_db)]):
     status_code=status.HTTP_200_OK,
 )
 async def get_payment(
-    payment_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    payment_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = PaymentService(db)
     try:
-        return await service.get_payment(payment_id)
+        payment = await service.get_payment(payment_id)
+        if not ctx.is_staff and payment.client_id != ctx.client_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Not found",
+            )
+        return payment
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -143,8 +169,15 @@ async def get_payment(
     status_code=status.HTTP_200_OK,
 )
 async def list_payments_by_client(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    client_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff and client_id != ctx.client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
     service = PaymentService(db)
     try:
         return await service.list_payments_by_client(client_id)
@@ -165,11 +198,25 @@ async def list_payments_by_client(
     status_code=status.HTTP_200_OK,
 )
 async def get_payment_by_invoice(
-    invoice_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    invoice_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = PaymentService(db)
     try:
+        if not ctx.is_staff:
+            from src.domains.invoicing.service import InvoiceService
+
+            invoice_service = InvoiceService(db)
+            invoice = await invoice_service.get_invoice(invoice_id)
+            if invoice.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not found",
+                )
         return await service.get_payment_by_invoice(invoice_id)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -222,11 +269,18 @@ async def refund_payment(
     status_code=status.HTTP_200_OK,
 )
 async def download_receipt(
-    payment_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    payment_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = PaymentService(db)
     try:
         detail = await service.get_payment(payment_id)
+        if not ctx.is_staff and detail.client_id != ctx.client_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Not found",
+            )
         payment_dict = detail.model_dump()
         invoice_dict = {"invoice_number": detail.invoice_number}
         client_dict = {
@@ -245,6 +299,8 @@ async def download_receipt(
                 )
             },
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

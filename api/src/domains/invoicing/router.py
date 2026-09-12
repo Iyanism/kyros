@@ -6,7 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user, require_role
+from src.core.dependencies import ClientContext, get_client_context, require_role
 from src.core.logger import logger
 from src.domains.invoicing.schema import (
     GenerateInvoiceRequest,
@@ -19,7 +19,7 @@ from src.domains.users.model import UserRole
 router = APIRouter(
     prefix="/invoices",
     tags=["Invoices"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_client_context)],
 )
 
 
@@ -64,10 +64,15 @@ async def generate_invoice(
     response_model=list[InvoiceDetailResponse],
     status_code=status.HTTP_200_OK,
 )
-async def list_invoices(db: Annotated[AsyncSession, Depends(get_db)]):
+async def list_invoices(
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     service = InvoiceService(db)
     try:
-        return await service.list_invoices()
+        if ctx.is_staff:
+            return await service.list_invoices()
+        return await service.list_invoices_by_client(ctx.client_id)
     except Exception as e:
         logger.error(f"Unexpected error listing invoices: {e}")
         raise HTTPException(
@@ -85,11 +90,21 @@ async def list_invoices(db: Annotated[AsyncSession, Depends(get_db)]):
     status_code=status.HTTP_200_OK,
 )
 async def get_invoice(
-    invoice_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    invoice_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InvoiceService(db)
     try:
-        return await service.get_invoice(invoice_id)
+        invoice = await service.get_invoice(invoice_id)
+        if not ctx.is_staff and invoice.client_id != ctx.client_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Not found",
+            )
+        return invoice
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -112,8 +127,15 @@ async def get_invoice(
     status_code=status.HTTP_200_OK,
 )
 async def list_invoices_by_client(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    client_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff and client_id != ctx.client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
     service = InvoiceService(db)
     try:
         return await service.list_invoices_by_client(client_id)
@@ -163,11 +185,18 @@ async def update_invoice_status(
     status_code=status.HTTP_200_OK,
 )
 async def download_invoice_pdf(
-    invoice_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    invoice_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InvoiceService(db)
     try:
         detail = await service.get_invoice(invoice_id)
+        if not ctx.is_staff and detail.client_id != ctx.client_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Not found",
+            )
         invoice_dict = detail.model_dump()
         client_dict = {
             "name": detail.client_name,
@@ -185,6 +214,8 @@ async def download_invoice_pdf(
                 )
             },
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

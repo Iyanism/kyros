@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user, require_role
+from src.core.dependencies import ClientContext, get_client_context, require_role
 from src.core.logger import logger
 from src.domains.inbound_orders.schema import (
     InboundOrderCreate,
@@ -25,7 +25,7 @@ from src.domains.users.model import UserRole
 router = APIRouter(
     prefix="/inbound-orders",
     tags=["Inbound Orders"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_client_context)],
 )
 
 
@@ -33,8 +33,12 @@ router = APIRouter(
     "", response_model=InboundOrderResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_inbound_order(
-    payload: InboundOrderCreate, db: Annotated[AsyncSession, Depends(get_db)]
+    payload: InboundOrderCreate,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff:
+        payload.client_id = ctx.client_id
     service = InboundOrderService(db)
     try:
         return await service.create(payload)
@@ -62,15 +66,17 @@ async def create_inbound_order(
 @router.get(
     "", response_model=list[InboundOrderResponse], status_code=status.HTTP_200_OK
 )
-async def list_inbound_orders(db: Annotated[AsyncSession, Depends(get_db)]):
+async def list_inbound_orders(
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     service = InboundOrderService(db)
     try:
-        return await service.list_all()
-    except InboundOrderNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "NOT_FOUND", "message": str(e)},
-        ) from e
+        if ctx.is_staff:
+            return await service.list_all()
+        return await service.list_by_client(ctx.client_id)
+    except InboundOrderNotFoundError:
+        return []
     except Exception as e:
         logger.error(f"Unexpected error listing inbound orders: {e}")
         raise HTTPException(
@@ -88,8 +94,15 @@ async def list_inbound_orders(db: Annotated[AsyncSession, Depends(get_db)]):
     status_code=status.HTTP_200_OK,
 )
 async def list_inbound_orders_by_client(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    client_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff and client_id != ctx.client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
     service = InboundOrderService(db)
     try:
         return await service.list_by_client(client_id)
@@ -117,11 +130,21 @@ async def list_inbound_orders_by_client(
     status_code=status.HTTP_200_OK,
 )
 async def get_inbound_order(
-    order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    order_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InboundOrderService(db)
     try:
-        return await service.get_by_id(order_id)
+        order = await service.get_by_id(order_id)
+        if not ctx.is_staff and order.client_id != ctx.client_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Not found",
+            )
+        return order
+    except HTTPException:
+        raise
     except InboundOrderNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -146,11 +169,21 @@ async def get_inbound_order(
 async def update_inbound_order(
     order_id: UUID,
     payload: InboundOrderUpdate,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InboundOrderService(db)
     try:
+        if not ctx.is_staff:
+            existing = await service.get_by_id(order_id)
+            if existing.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not found",
+                )
         return await service.update(order_id, payload)
+    except HTTPException:
+        raise
     except InboundOrderNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

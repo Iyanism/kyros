@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user
+from src.core.dependencies import ClientContext, get_client_context
 from src.core.logger import logger
 from src.domains.stock_movements.schema import StockLevelResponse, StockMovementResponse
 from src.domains.stock_movements.service import StockService
@@ -13,7 +13,7 @@ from src.domains.stock_movements.service import StockService
 router = APIRouter(
     prefix="/stock-movements",
     tags=["Stock Movements"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_client_context)],
 )
 
 
@@ -22,10 +22,15 @@ router = APIRouter(
     response_model=list[StockLevelResponse],
     status_code=status.HTTP_200_OK,
 )
-async def list_stock_levels(db: Annotated[AsyncSession, Depends(get_db)]):
+async def list_stock_levels(
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     service = StockService(db)
     try:
-        return await service.list_levels_all()
+        if ctx.is_staff:
+            return await service.list_levels_all()
+        return await service.list_levels_by_client(ctx.client_id)
     except Exception as e:
         logger.error(f"Unexpected error listing stock levels: {e}")
         raise HTTPException(
@@ -43,8 +48,15 @@ async def list_stock_levels(db: Annotated[AsyncSession, Depends(get_db)]):
     status_code=status.HTTP_200_OK,
 )
 async def list_stock_levels_by_client(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    client_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff and client_id != ctx.client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
     service = StockService(db)
     try:
         return await service.list_levels_by_client(client_id)
@@ -64,10 +76,15 @@ async def list_stock_levels_by_client(
     response_model=list[StockMovementResponse],
     status_code=status.HTTP_200_OK,
 )
-async def list_stock_movements(db: Annotated[AsyncSession, Depends(get_db)]):
+async def list_stock_movements(
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     service = StockService(db)
     try:
-        return await service.list_movements_all()
+        if ctx.is_staff:
+            return await service.list_movements_all()
+        return await service.list_movements_by_client(ctx.client_id)
     except Exception as e:
         logger.error(f"Unexpected error listing stock movements: {e}")
         raise HTTPException(
@@ -85,8 +102,15 @@ async def list_stock_movements(db: Annotated[AsyncSession, Depends(get_db)]):
     status_code=status.HTTP_200_OK,
 )
 async def list_stock_movements_by_client(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    client_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff and client_id != ctx.client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
     service = StockService(db)
     try:
         return await service.list_movements_by_client(client_id)
@@ -107,11 +131,25 @@ async def list_stock_movements_by_client(
     status_code=status.HTTP_200_OK,
 )
 async def list_stock_movements_by_order(
-    order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    order_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = StockService(db)
     try:
+        if not ctx.is_staff:
+            from src.domains.inbound_orders.service import InboundOrderService
+
+            order_service = InboundOrderService(db)
+            order = await order_service.get_by_id(order_id)
+            if order.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not found",
+                )
         return await service.list_movements_by_order(order_id)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Unexpected error listing movements for order {order_id}: {e}")
         raise HTTPException(

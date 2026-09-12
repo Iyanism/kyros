@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.core.dependencies import get_current_user, require_role
+from src.core.dependencies import ClientContext, get_client_context, get_current_user, require_role
 from src.core.logger import logger
 from src.domains.users.model import User, UserRole
 from src.domains.inventory.schema import (
@@ -29,7 +29,7 @@ from src.domains.inventory.service import (
 router = APIRouter(
     prefix="/inventory",
     tags=["Inventory"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_client_context)],
 )
 
 
@@ -75,11 +75,25 @@ async def palletise_order(order_id: UUID, db: Annotated[AsyncSession, Depends(ge
     status_code=status.HTTP_200_OK,
 )
 async def list_order_pallets(
-    order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    order_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InventoryService(db)
     try:
+        if not ctx.is_staff:
+            from src.domains.inbound_orders.service import InboundOrderService
+
+            order_service = InboundOrderService(db)
+            order = await order_service.get_by_id(order_id)
+            if order.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not found",
+                )
         return await service.list_pallets(order_id)
+    except HTTPException:
+        raise
     except InventoryOrderNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -143,11 +157,25 @@ async def allocate_order(
     status_code=status.HTTP_200_OK,
 )
 async def list_order_allocations(
-    order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    order_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InventoryService(db)
     try:
+        if not ctx.is_staff:
+            from src.domains.inbound_orders.service import InboundOrderService
+
+            order_service = InboundOrderService(db)
+            order = await order_service.get_by_id(order_id)
+            if order.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not found",
+                )
         return await service.list_allocations(order_id)
+    except HTTPException:
+        raise
     except InventoryOrderNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -170,8 +198,15 @@ async def list_order_allocations(
     status_code=status.HTTP_200_OK,
 )
 async def get_client_inventory_summary(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    client_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff and client_id != ctx.client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
     service = InventoryService(db)
     try:
         return await service.list_client_inventory_summary(client_id)
@@ -199,8 +234,15 @@ async def get_client_inventory_summary(
     status_code=status.HTTP_200_OK,
 )
 async def get_client_inventory(
-    client_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    client_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    if not ctx.is_staff and client_id != ctx.client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
     service = InventoryService(db)
     try:
         return await service.list_client_inventory(client_id)
@@ -224,12 +266,16 @@ async def get_client_inventory(
     "/inventory",
     response_model=list[PalletItemResponse],
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.OPERATOR))],
 )
-async def get_all_inventory(db: Annotated[AsyncSession, Depends(get_db)]):
+async def get_all_inventory(
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
     service = InventoryService(db)
     try:
-        return await service.list_all_inventory()
+        if ctx.is_staff:
+            return await service.list_all_inventory()
+        return await service.list_client_inventory(ctx.client_id)
     except Exception as e:
         logger.error(f"Unexpected error listing all inventory: {e}")
         raise HTTPException(
@@ -290,11 +336,26 @@ async def generate_pick_list(
     status_code=status.HTTP_200_OK,
 )
 async def get_pick_list(
-    pick_list_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    pick_list_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InventoryService(db)
     try:
-        return await service.get_pick_list(pick_list_id)
+        pick_list = await service.get_pick_list(pick_list_id)
+        if not ctx.is_staff:
+            from src.domains.outbound_orders.service import OutboundOrderService
+
+            order_service = OutboundOrderService(db)
+            order = await order_service.get_by_id(pick_list.outbound_order_id)
+            if order.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not found",
+                )
+        return pick_list
+    except HTTPException:
+        raise
     except InventoryOrderNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -317,11 +378,25 @@ async def get_pick_list(
     status_code=status.HTTP_200_OK,
 )
 async def get_pick_list_by_outbound_order(
-    outbound_order_id: UUID, db: Annotated[AsyncSession, Depends(get_db)]
+    outbound_order_id: UUID,
+    ctx: Annotated[ClientContext, Depends(get_client_context)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     service = InventoryService(db)
     try:
+        if not ctx.is_staff:
+            from src.domains.outbound_orders.service import OutboundOrderService
+
+            order_service = OutboundOrderService(db)
+            order = await order_service.get_by_id(outbound_order_id)
+            if order.client_id != ctx.client_id:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not found",
+                )
         return await service.get_pick_list_by_outbound_order(outbound_order_id)
+    except HTTPException:
+        raise
     except InventoryOrderNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
