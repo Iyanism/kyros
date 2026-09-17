@@ -1,8 +1,10 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.core.logger import logger
 from src.core.security import hash_password
@@ -64,7 +66,10 @@ class UserService:
         logger.info(
             "User created: id=%s email=%s role=%s", user.id, user.email, user.role
         )
-        return UserClientResponse.model_validate(user)
+        stmt = select(User).options(selectinload(User.client)).where(User.id == user.id)
+        result = await self.db.execute(stmt)
+        user_with_client = result.scalar_one()
+        return UserClientResponse.model_validate(user_with_client)
 
     async def list_all(
         self, limit: int = 10, offset: int = 0

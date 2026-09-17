@@ -17,6 +17,7 @@ from src.domains.auths.schema import (
 from src.domains.auths.service import AuthService
 from src.domains.users.model import User
 from src.domains.users.schema import UserResponse
+from src.domains.users.service import UserNotFoundError
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -57,7 +58,13 @@ async def login_user(
     response: Response,
     service: AuthServiceDep,
 ):
-    login = await service.login(payload)
+    try:
+        login = await service.login(payload)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
     _set_auth_cookies(response, login)
     return login
 

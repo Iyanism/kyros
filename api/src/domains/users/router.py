@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
@@ -13,7 +13,7 @@ from src.domains.users.schema import (
     UserResponse,
     UserUpdate,
 )
-from src.domains.users.service import UserService
+from src.domains.users.service import UserAlreadyExistsError, UserNotFoundError, UserService
 
 router = APIRouter(
     prefix="/users",
@@ -32,7 +32,13 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 @router.post("", response_model=UserClientResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(payload: UserCreate, service: UserServiceDep):
-    return await service.create(payload)
+    try:
+        return await service.create(payload)
+    except UserAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "VALIDATION_ERROR", "message": str(e)},
+        ) from e
 
 
 @router.get("", response_model=list[UserClientResponse], status_code=status.HTTP_200_OK)
@@ -46,12 +52,24 @@ async def get_users(
 
 @router.get("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def get_user(user_id: UUID, service: UserServiceDep):
-    return await service.get_by_id(user_id)
+    try:
+        return await service.get_by_id(user_id)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
 
 
 @router.patch("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def update_user(user_id: UUID, payload: UserUpdate, service: UserServiceDep):
-    return await service.update(user_id, payload)
+    try:
+        return await service.update(user_id, payload)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
 
 
 @router.patch(
@@ -60,10 +78,22 @@ async def update_user(user_id: UUID, payload: UserUpdate, service: UserServiceDe
     status_code=status.HTTP_200_OK,
 )
 async def toggle_user_status(user_id: UUID, service: UserServiceDep):
-    return await service.toggle_status(user_id)
+    try:
+        return await service.toggle_status(user_id)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(user_id: UUID, service: UserServiceDep):
-    await service.delete(user_id)
+    try:
+        await service.delete(user_id)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOT_FOUND", "message": str(e)},
+        ) from e
     return None
