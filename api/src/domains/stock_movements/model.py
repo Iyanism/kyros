@@ -36,7 +36,7 @@ class StockMovement(Base, CreatedAtMixin):
         index=True,
     )
     movement_type = mapped_column(
-        Enum(MovementType),
+        Enum(MovementType, native_enum=False, length=20),
         nullable=False,
         index=True,
     )

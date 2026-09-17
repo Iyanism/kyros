@@ -40,9 +40,9 @@ class Payment(Base, TimestampMixin):
     )
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR")
-    method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod), nullable=False)
+    method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod, native_enum=False, length=20), nullable=False)
     status: Mapped[PaymentStatus] = mapped_column(
-        Enum(PaymentStatus), nullable=False, default=PaymentStatus.CREATED
+        Enum(PaymentStatus, native_enum=False, length=20), nullable=False, default=PaymentStatus.CREATED
     )
     razorpay_order_id: Mapped[str] = mapped_column(
         String(64), nullable=False, index=True

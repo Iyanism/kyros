@@ -36,7 +36,7 @@ class Invoice(Base, TimestampMixin):
         String(32), unique=True, nullable=False, index=True
     )
     status: Mapped[InvoiceStatus] = mapped_column(
-        Enum(InvoiceStatus), nullable=False, default=InvoiceStatus.DRAFT
+        Enum(InvoiceStatus, native_enum=False, length=20), nullable=False, default=InvoiceStatus.DRAFT
     )
     billing_period_start: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

@@ -36,7 +36,7 @@ class OutboundOrder(Base, TimestampMixin):
         nullable=False,
     )
     status: Mapped[OutboundOrderStatus] = mapped_column(
-        Enum(OutboundOrderStatus),
+        Enum(OutboundOrderStatus, native_enum=False, length=20),
         default=OutboundOrderStatus.DRAFT,
         nullable=False,
     )

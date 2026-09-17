@@ -44,7 +44,7 @@ class InboundOrder(Base, TimestampMixin):
         nullable=False,
     )
     status: Mapped[OrderRequestStatus] = mapped_column(
-        Enum(OrderRequestStatus),
+        Enum(OrderRequestStatus, native_enum=False, length=20),
         default=OrderRequestStatus.SUBMITTED,
         nullable=False,
     )
@@ -77,7 +77,7 @@ class InboundOrderItem(Base):
         nullable=False,
     )
     temperature_category: Mapped[ChamberCategory] = mapped_column(
-        Enum(ChamberCategory),
+        Enum(ChamberCategory, native_enum=False, length=20),
         nullable=False,
     )
     batch_number: Mapped[str] = mapped_column(
