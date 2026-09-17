@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import (
     UUID,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
@@ -18,7 +19,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.base import Base, CreatedAtMixin, TimestampMixin
-from src.domains.warehouse.model import ChamberCategory
 
 if TYPE_CHECKING:
     from src.domains.inbound_orders.model import InboundOrderItem  # noqa: TC001
@@ -34,6 +34,12 @@ class PalletStatus(StrEnum):
 
 class Pallet(Base, TimestampMixin):
     __tablename__: str = "pallets"
+    __table_args__ = (
+        CheckConstraint(
+            "temperature_category IN ('frozen', 'chilled', 'ambient')",
+            name="valid_pallet_temperature_category",
+        ),
+    )
 
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -73,8 +79,8 @@ class Pallet(Base, TimestampMixin):
         DateTime(timezone=True),
         nullable=False,
     )
-    temperature_category: Mapped[ChamberCategory] = mapped_column(
-        Enum(ChamberCategory),
+    temperature_category: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
     )
     weight: Mapped[float] = mapped_column(
@@ -92,7 +98,7 @@ class Pallet(Base, TimestampMixin):
         default=False,
     )
     status: Mapped[PalletStatus] = mapped_column(
-        Enum(PalletStatus),
+        Enum(PalletStatus, native_enum=False, length=20),
         nullable=False,
         default=PalletStatus.ALLOCATED,
     )
