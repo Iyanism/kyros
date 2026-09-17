@@ -13,9 +13,9 @@ from src.domains.inventory.repository import (
     PickListRepository,
     PickRecordRepository,
     SlotAllocationRepository,
+    SlotReservationRepository,
 )
 from src.domains.stock_movements.service import StockService
-from src.domains.warehouse.model import SlotStatus
 from src.domains.outbound_orders.model import (
     OutboundOrder,
     OutboundOrderItem,
@@ -31,7 +31,6 @@ from src.domains.outbound_orders.schema import (
     OutboundOrderResponse,
     OutboundOrderUpdate,
 )
-from src.domains.warehouse.repository import SlotRepository
 
 
 class OutboundOrderNotFoundError(Exception):
@@ -74,7 +73,7 @@ class OutboundOrderService:
         self.pick_record_repo = PickRecordRepository(db)
         self.pallet_repo = PalletRepository(db)
         self.allocation_repo = SlotAllocationRepository(db)
-        self.slot_repo = SlotRepository(db)
+        self.slot_repo = SlotReservationRepository(db)
 
     async def create(self, order_data: OutboundOrderCreate) -> OutboundOrderResponse:
         client = await self.client_repo.get_by_id(order_data.client_id)
@@ -252,9 +251,7 @@ class OutboundOrderService:
                         allocation.is_active = False
                         allocation.released_at = datetime.now(UTC)
 
-                        slot = allocation.slot
-                        slot.status = SlotStatus.AVAILABLE
-                        slot.allocated_client_id = None
+                        await self.slot_repo.release_occupied_slot(allocation.slot.id)
 
             record_ids.append(record.id)
 
