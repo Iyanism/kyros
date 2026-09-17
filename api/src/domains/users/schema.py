@@ -16,9 +16,11 @@ RawPassword = Annotated[str, Field(min_length=8, max_length=128)]
 
 
 class UserBase(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     email: EmailStr
     full_name: Annotated[
-        str, Field(min_length=2, max_length=255, strip_whitespace=True)
+        str, Field(min_length=2, max_length=255)
     ]
     phone_number: PhoneNumber = None
     role: UserRole = UserRole.CLIENT
@@ -43,11 +45,13 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     email: EmailStr | None = None
     password: RawPassword | None = None
     full_name: Annotated[
         str | None,
-        Field(default=None, min_length=2, max_length=255, strip_whitespace=True),
+        Field(default=None, min_length=2, max_length=255),
     ] = None
     phone_number: PhoneNumber = None
     role: UserRole | None = None
