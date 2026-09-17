@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import override
 
 from sqlalchemy import (
-    Enum,
+    CheckConstraint,
     Float,
     ForeignKey,
     Integer,
@@ -13,10 +13,19 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.base import Base, TimestampMixin
+
+__all__ = [
+    "Chamber",
+    "ChamberCategory",
+    "ChamberStatus",
+    "Rack",
+    "RackStatus",
+    "Slot",
+    "SlotStatus",
+]
 
 
 class ChamberStatus(StrEnum):
@@ -46,7 +55,17 @@ class SlotStatus(StrEnum):
 
 
 class Chamber(Base, TimestampMixin):
-    __tablename__: str = "chambers"
+    __tablename__ = "chambers"
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('frozen', 'chilled', 'ambient')",
+            name="valid_chamber_category",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'maintenance', 'inactive')",
+            name="valid_chamber_status",
+        ),
+    )
 
     name: Mapped[str] = mapped_column(
         String(50),
@@ -60,18 +79,18 @@ class Chamber(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    category: Mapped[ChamberCategory] = mapped_column(
-        Enum(ChamberCategory),
+    category: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
     )
     temperature: Mapped[float] = mapped_column(
         Float,
         nullable=False,
     )
-    status: Mapped[ChamberStatus] = mapped_column(
-        Enum(ChamberStatus),
+    status: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
-        default=ChamberStatus.ACTIVE,
+        default=ChamberStatus.ACTIVE.value,
     )
 
     racks: Mapped[list["Rack"]] = relationship(
@@ -93,9 +112,13 @@ class Chamber(Base, TimestampMixin):
 
 
 class Rack(Base, TimestampMixin):
-    __tablename__: str = "racks"
+    __tablename__ = "racks"
     __table_args__ = (
         UniqueConstraint("chamber_id", "rack_number", name="unique_chamber_rack"),
+        CheckConstraint(
+            "status IN ('active', 'full', 'maintenance', 'inactive')",
+            name="valid_rack_status",
+        ),
     )
 
     chamber_id: Mapped[uuid.UUID] = mapped_column(
@@ -108,19 +131,18 @@ class Rack(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    status: Mapped[RackStatus] = mapped_column(
-        Enum(RackStatus),
+    status: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
-        default=RackStatus.ACTIVE,
+        default=RackStatus.ACTIVE.value,
     )
     chamber: Mapped[Chamber] = relationship(back_populates="racks")
     slots: Mapped[list["Slot"]] = relationship(
         back_populates="rack", cascade="all, delete-orphan"
     )
 
-    @hybrid_property
+    @property
     def full_code(self) -> str:
-        # Computed, not stored: e.g. CH1-R02
         code = self.chamber.code if self.chamber else str(self.chamber_id)
         return f"{code}-{self.rack_number}"
 
@@ -133,9 +155,13 @@ class Rack(Base, TimestampMixin):
 
 
 class Slot(Base, TimestampMixin):
-    __tablename__: str = "slots"
+    __tablename__ = "slots"
     __table_args__ = (
         UniqueConstraint("rack_id", "bay", "level", "depth", name="unique_rack_slot"),
+        CheckConstraint(
+            "status IN ('available', 'reserved', 'occupied', 'maintenance')",
+            name="valid_slot_status",
+        ),
     )
 
     rack_id: Mapped[uuid.UUID] = mapped_column(
@@ -162,10 +188,10 @@ class Slot(Base, TimestampMixin):
         unique=True,
         index=True,
     )
-    status: Mapped[SlotStatus] = mapped_column(
-        Enum(SlotStatus),
+    status: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
-        default=SlotStatus.AVAILABLE,
+        default=SlotStatus.AVAILABLE.value,
     )
     allocated_client_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
