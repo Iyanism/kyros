@@ -21,6 +21,7 @@ from src.domains.inventory.repository import (
     PickListRepository,
     PickRecordRepository,
     SlotAllocationRepository,
+    SlotReservationRepository,
 )
 from src.domains.inventory.schema import (
     ClientInventorySummary,
@@ -36,7 +37,6 @@ from src.domains.outbound_orders.model import OutboundOrderStatus
 from src.domains.outbound_orders.repository import OutboundOrderRepository
 from src.domains.stock_movements.service import StockService
 from src.domains.warehouse.model import Rack, Slot, SlotStatus
-from src.domains.warehouse.repository import SlotRepository
 from src.utils.units import quantity_to_mt
 
 PALLET_CAPACITY_MT = 1.0
@@ -66,7 +66,7 @@ class InventoryService:
         self.outbound_order_repo = OutboundOrderRepository(db)
         self.pallet_repo = PalletRepository(db)
         self.allocation_repo = SlotAllocationRepository(db)
-        self.slot_repo = SlotRepository(db)
+        self.slot_repo = SlotReservationRepository(db)
         self.pick_list_repo = PickListRepository(db)
         self.pick_record_repo = PickRecordRepository(db)
 
@@ -183,7 +183,7 @@ class InventoryService:
 
         pallet_counts: dict[str, int] = {}
         for p in pallets:
-            cat = p.temperature_category.value
+            cat = p.temperature_category
             pallet_counts[cat] = pallet_counts.get(cat, 0) + 1
 
         reserved = await self.slot_repo.count_reserved_by_client_and_temp(
@@ -212,12 +212,13 @@ class InventoryService:
 
         cat_to_slots: dict[str, list[Slot]] = {}
         for slot in reserved_slots:
-            cat = slot.rack.chamber.category.value
+            cat = slot.rack.chamber.category
             cat_to_slots.setdefault(cat, []).append(slot)
 
         allocations: list[SlotAllocation] = []
+        selected_slot_ids: list[UUID] = []
         for pallet in pallets:
-            cat = pallet.temperature_category.value
+            cat = pallet.temperature_category
             slot = cat_to_slots[cat].pop(0)
             allocations.append(
                 SlotAllocation(
@@ -226,8 +227,16 @@ class InventoryService:
                     slot_id=slot.id,
                 )
             )
-            slot.status = SlotStatus.OCCUPIED
-            slot.allocated_client_id = order.client_id
+            selected_slot_ids.append(slot.id)
+
+        allocated_slots = await self.slot_repo.allocate_reserved_slots(
+            order.client_id, selected_slot_ids
+        )
+        if len(allocated_slots) != len(selected_slot_ids):
+            raise InventoryConflictError(
+                f"Failed to allocate all reserved slots: "
+                f"requested {len(selected_slot_ids)}, allocated {len(allocated_slots)}"
+            )
 
         await self.allocation_repo.create_many(allocations)
         await self.pallet_repo.mark_stored(order_id)
@@ -496,7 +505,6 @@ class InventoryService:
             chamber_code=chamber.code if chamber else "",
             chamber_name=chamber.name if chamber else "",
             rack_number=rack.rack_number if rack else "",
-            location_code=slot.location_code if slot else "",
             created_at=pallet.created_at,
             updated_at=pallet.updated_at,
         )

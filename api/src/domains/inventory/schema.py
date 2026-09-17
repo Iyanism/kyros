@@ -78,7 +78,6 @@ class PalletItemResponse(BaseModel):
     chamber_code: str
     chamber_name: str
     rack_number: str
-    location_code: str
     created_at: datetime
     updated_at: datetime
 
