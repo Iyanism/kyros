@@ -20,6 +20,7 @@ from src.domains.warehouse.service import (
     WarehouseDuplicateError,
     WarehouseNotFoundError,
     WarehouseService,
+    WarehouseValidationError,
 )
 
 router = APIRouter(
@@ -367,14 +368,14 @@ async def delete_slot(slot_id: UUID, db: Annotated[AsyncSession, Depends(get_db)
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "NOT_FOUND", "message": str(e)},
         ) from e
-    except WarehouseConflictError:
+    except WarehouseConflictError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "code": "CONFLICT",
                 "message": "Cannot delete slot. Please clear goods first.",
             },
-        ) from None
+        ) from e
     except Exception as e:
         logger.error(f"Unexpected error deleting slot {slot_id}: {e}")
         raise HTTPException(

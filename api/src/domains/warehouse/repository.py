@@ -6,12 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from typing_extensions import Mapping
 
-from src.domains.warehouse.model import Chamber, ChamberCategory, Rack, Slot, SlotStatus
+from src.domains.warehouse.model import Chamber, Rack, Slot, SlotStatus
 
 
 class ChamberRepository:
+    _VALID_FIELDS = {col.name for col in Chamber.__table__.columns}
+
     def __init__(self, db: AsyncSession) -> None:
-        self.db: AsyncSession = db
+        self.db = db
 
     async def get_by_id(self, chamber_id: UUID) -> Chamber | None:
         return await self.db.get(Chamber, chamber_id)
@@ -49,6 +51,14 @@ class ChamberRepository:
         await self.db.flush()
         return True
 
+    async def delete_by_id(self, chamber_id: UUID) -> bool:
+        chamber = await self.get_by_id(chamber_id)
+        if chamber is None:
+            return False
+        await self.db.delete(chamber)
+        await self.db.flush()
+        return True
+
     async def update(
         self, chamber_id: UUID, update_data: Mapping[str, UUID | str | int]
     ) -> Chamber | None:
@@ -56,6 +66,8 @@ class ChamberRepository:
         if chamber is None:
             return None
         for field, value in update_data.items():
+            if field not in self._VALID_FIELDS:
+                continue
             setattr(chamber, field, value)
 
         await self.db.flush()
@@ -65,6 +77,8 @@ class ChamberRepository:
 
 
 class RackRepository:
+    _VALID_FIELDS = {col.name for col in Rack.__table__.columns}
+
     def __init__(self, db: AsyncSession) -> None:
         self.db: AsyncSession = db
 
@@ -134,6 +148,14 @@ class RackRepository:
         await self.db.flush()
         return True
 
+    async def delete_by_id(self, rack_id: UUID) -> bool:
+        rack = await self.get_by_id(rack_id)
+        if rack is None:
+            return False
+        await self.db.delete(rack)
+        await self.db.flush()
+        return True
+
     async def update(
         self, rack_id: UUID, update_data: Mapping[str, UUID | str | int]
     ) -> Rack | None:
@@ -141,6 +163,8 @@ class RackRepository:
         if rack is None:
             return None
         for field, value in update_data.items():
+            if field not in self._VALID_FIELDS:
+                continue
             setattr(rack, field, value)
 
         await self.db.flush()
@@ -150,6 +174,8 @@ class RackRepository:
 
 
 class SlotRepository:
+    _VALID_FIELDS = {col.name for col in Slot.__table__.columns}
+
     def __init__(self, db: AsyncSession) -> None:
         self.db: AsyncSession = db
 
@@ -181,60 +207,15 @@ class SlotRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
-    async def list_available_slots(
-        self, chamber_id: UUID | None = None
-    ) -> Sequence[Slot]:
-        stmt = (
-            select(Slot)
-            .join(Rack, Slot.rack_id == Rack.id)
-            .where(Slot.status == SlotStatus.AVAILABLE)
-            .options(selectinload(Slot.rack).selectinload(Rack.chamber))
-            .order_by(Rack.chamber_id, Slot.location_code)
-        )
-        if chamber_id is not None:
-            stmt = stmt.where(Rack.chamber_id == chamber_id)
-        result = await self.db.execute(stmt)
-        return result.scalars().all()
-
-    async def get_available_slot_for_temp(
-        self,
-        temp_cat: ChamberCategory,
-        chamber_id: UUID | None = None,
-    ) -> Slot | None:
-        stmt = (
-            select(Slot)
-            .join(Rack, Slot.rack_id == Rack.id)
-            .join(Chamber, Rack.chamber_id == Chamber.id)
-            .where(
-                Slot.status == SlotStatus.AVAILABLE,
-                Chamber.category == temp_cat,
-            )
-            .options(selectinload(Slot.rack).selectinload(Rack.chamber))
-        )
-        if chamber_id is not None:
-            stmt = stmt.where(Rack.chamber_id == chamber_id)
-        stmt = stmt.limit(1)
-        result = await self.db.execute(stmt)
-        return result.scalars().first()
-
-    async def count_available_by_temp(
-        self,
-        chamber_id: UUID | None = None,
-    ) -> dict[ChamberCategory, int]:
-        stmt = (
-            select(Chamber.category, func.count())
-            .select_from(Slot)
-            .join(Rack, Slot.rack_id == Rack.id)
-            .join(Chamber, Rack.chamber_id == Chamber.id)
-            .where(Slot.status == SlotStatus.AVAILABLE)
-            .group_by(Chamber.category)
-        )
-        if chamber_id is not None:
-            stmt = stmt.where(Rack.chamber_id == chamber_id)
-        result = await self.db.execute(stmt)
-        return {row[0]: row[1] for row in result.all()}
-
     async def delete(self, slot_id: UUID) -> bool:
+        slot = await self.get_by_id(slot_id)
+        if slot is None:
+            return False
+        await self.db.delete(slot)
+        await self.db.flush()
+        return True
+
+    async def delete_by_id(self, slot_id: UUID) -> bool:
         slot = await self.get_by_id(slot_id)
         if slot is None:
             return False
@@ -249,6 +230,8 @@ class SlotRepository:
         if slot is None:
             return None
         for field, value in update_data.items():
+            if field not in self._VALID_FIELDS:
+                continue
             setattr(slot, field, value)
 
         await self.db.flush()
@@ -289,69 +272,3 @@ class SlotRepository:
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()
-
-    async def reserve_slots_for_temp(
-        self,
-        temp_cat: ChamberCategory,
-        count: int,
-        client_id: UUID,
-        chamber_id: UUID | None = None,
-    ) -> Sequence[Slot]:
-        stmt = (
-            select(Slot)
-            .join(Rack, Slot.rack_id == Rack.id)
-            .join(Chamber, Rack.chamber_id == Chamber.id)
-            .where(
-                Slot.status == SlotStatus.AVAILABLE,
-                Chamber.category == temp_cat,
-            )
-            .with_for_update(skip_locked=True)
-            .limit(count)
-        )
-        if chamber_id is not None:
-            stmt = stmt.where(Rack.chamber_id == chamber_id)
-        result = await self.db.execute(stmt)
-        slots = result.scalars().all()
-        for slot in slots:
-            slot.status = SlotStatus.RESERVED
-            slot.allocated_client_id = client_id
-        await self.db.flush()
-        return slots
-
-    async def release_reserved_for_client(self, client_id: UUID) -> int:
-        stmt = (
-            select(Slot)
-            .where(
-                Slot.status == SlotStatus.RESERVED,
-                Slot.allocated_client_id == client_id,
-            )
-            .with_for_update(skip_locked=True)
-        )
-        result = await self.db.execute(stmt)
-        slots = result.scalars().all()
-        for slot in slots:
-            slot.status = SlotStatus.AVAILABLE
-            slot.allocated_client_id = None
-        await self.db.flush()
-        return len(slots)
-
-    async def count_reserved_by_client_and_temp(
-        self,
-        client_id: UUID,
-        chamber_id: UUID | None = None,
-    ) -> dict[ChamberCategory, int]:
-        stmt = (
-            select(Chamber.category, func.count())
-            .select_from(Slot)
-            .join(Rack, Slot.rack_id == Rack.id)
-            .join(Chamber, Rack.chamber_id == Chamber.id)
-            .where(
-                Slot.status == SlotStatus.RESERVED,
-                Slot.allocated_client_id == client_id,
-            )
-            .group_by(Chamber.category)
-        )
-        if chamber_id is not None:
-            stmt = stmt.where(Rack.chamber_id == chamber_id)
-        result = await self.db.execute(stmt)
-        return {row[0]: row[1] for row in result.all()}

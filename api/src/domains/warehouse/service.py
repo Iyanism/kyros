@@ -32,6 +32,10 @@ class WarehouseDuplicateError(ValueError):
     pass
 
 
+class WarehouseValidationError(ValueError):
+    pass
+
+
 class WarehouseService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -78,13 +82,12 @@ class WarehouseService:
                         )
                         slot = await self.slot_repo.create(slot)
                         slot_responses.append(self._to_slot_response(slot))
-                rack_full_code = f"{chamber.code}-{rack.rack_number}"
                 rack_details.append(
                     RackDetailResponse(
                         id=rack.id,
                         chamber_id=rack.chamber_id,
                         rack_number=rack.rack_number,
-                        full_code=rack_full_code,
+                        full_code=rack.full_code,
                         slot_count=len(slot_responses),
                         occupied_count=0,
                         status=rack.status,
@@ -138,20 +141,7 @@ class WarehouseService:
         total_occupied = await self.slot_repo.count_occupied_by_chamber(chamber_id)
         total_racks = await self.rack_repo.count_by_chamber(chamber_id)
 
-        return ChamberResponse(
-            id=chamber.id,
-            name=chamber.name,
-            code=chamber.code,
-            category=chamber.category,
-            temperature=chamber.temperature,
-            status=chamber.status,
-            total_racks=total_racks,
-            total_slots=total_slots,
-            total_capacity=float(total_slots),
-            used_capacity=float(total_occupied),
-            created_at=chamber.created_at,
-            updated_at=chamber.updated_at,
-        )
+        return self._to_chamber_response(chamber, total_racks, total_slots, total_occupied)
 
     async def get_chamber_detail(self, chamber_id: UUID) -> ChamberDetailResponse:
         chamber = await self.chamber_repo.get_with_details(chamber_id)
@@ -209,38 +199,24 @@ class WarehouseService:
                 "Slots are still occupied by goods, remove them to delete chamber"
             )
 
-        deleted = await self.chamber_repo.delete(chamber_id)
+        deleted = await self.chamber_repo.delete_by_id(chamber_id)
         if not deleted:
             raise WarehouseNotFoundError("Chamber not found")
 
     async def list_chambers(self) -> list[ChamberResponse]:
         chambers = await self.chamber_repo.list_all()
         if not chambers:
-            raise WarehouseNotFoundError("No chambers found")
+            return []
 
-        chamber_responses: list[ChamberResponse] = []
+        responses: list[ChamberResponse] = []
         for chamber in chambers:
             total_slots = await self.slot_repo.count_by_chamber(chamber.id)
             total_occupied = await self.slot_repo.count_occupied_by_chamber(chamber.id)
             total_racks = await self.rack_repo.count_by_chamber(chamber.id)
-
-            res = ChamberResponse(
-                id=chamber.id,
-                name=chamber.name,
-                code=chamber.code,
-                category=chamber.category,
-                temperature=chamber.temperature,
-                status=chamber.status,
-                total_racks=total_racks,
-                total_slots=total_slots,
-                total_capacity=float(total_slots),
-                used_capacity=float(total_occupied),
-                created_at=chamber.created_at,
-                updated_at=chamber.updated_at,
+            responses.append(
+                self._to_chamber_response(chamber, total_racks, total_slots, total_occupied)
             )
-            chamber_responses.append(res)
-
-        return chamber_responses
+        return responses
 
     async def list_racks(self, chamber_id: UUID) -> list[RackResponse]:
         chamber = await self.chamber_repo.get_by_id(chamber_id)
@@ -249,46 +225,16 @@ class WarehouseService:
 
         racks = await self.rack_repo.list_by_chamber_with_details(chamber_id)
         if not racks:
-            raise WarehouseNotFoundError("No racks found for this chamber")
+            return []
 
-        rack_responses: list[RackResponse] = []
-        for rack in racks:
-            slot_count = await self.slot_repo.count_by_rack(rack.id)
-            occupied_count = await self.slot_repo.total_occupied_slots(rack.id)
-            res = RackResponse(
-                id=rack.id,
-                chamber_id=rack.chamber_id,
-                rack_number=rack.rack_number,
-                full_code=rack.full_code,
-                slot_count=slot_count,
-                occupied_count=occupied_count,
-                status=rack.status,
-                created_at=rack.created_at,
-                updated_at=rack.updated_at,
-            )
-            rack_responses.append(res)
-
-        return rack_responses
+        return [self._to_rack_response(rack) for rack in racks]
 
     async def get_rack(self, rack_id: UUID) -> RackResponse:
         rack = await self.rack_repo.get_with_slots(rack_id)
         if rack is None:
             raise WarehouseNotFoundError("Rack not found")
 
-        slot_count = await self.slot_repo.count_by_rack(rack.id)
-        occupied_count = await self.slot_repo.total_occupied_slots(rack.id)
-
-        return RackResponse(
-            id=rack.id,
-            chamber_id=rack.chamber_id,
-            rack_number=rack.rack_number,
-            full_code=rack.full_code,
-            slot_count=slot_count,
-            occupied_count=occupied_count,
-            status=rack.status,
-            created_at=rack.created_at,
-            updated_at=rack.updated_at,
-        )
+        return self._to_rack_response(rack)
 
     async def add_rack(
         self,
@@ -312,9 +258,9 @@ class WarehouseService:
                 )
 
         if bays_per_rack < 1 or bays_per_rack > 100:
-            raise ValueError("bays_per_rack must be between 1 and 100")
+            raise WarehouseValidationError("bays_per_rack must be between 1 and 100")
         if levels_per_rack < 1 or levels_per_rack > 100:
-            raise ValueError("levels_per_rack must be between 1 and 100")
+            raise WarehouseValidationError("levels_per_rack must be between 1 and 100")
 
         rack = Rack(chamber_id=chamber_id, rack_number=rack_number)
         try:
@@ -365,7 +311,7 @@ class WarehouseService:
                 "Rack has occupied slots, clear them before deletion"
             )
 
-        deleted = await self.rack_repo.delete(rack_id)
+        deleted = await self.rack_repo.delete_by_id(rack_id)
         if not deleted:
             raise WarehouseNotFoundError("Rack not found")
 
@@ -376,7 +322,7 @@ class WarehouseService:
 
         slots = await self.slot_repo.list_by_rack_with_details(rack_id)
         if not slots:
-            raise WarehouseNotFoundError("No slots found for this rack")
+            return []
 
         return [self._to_slot_response(s) for s in slots]
 
@@ -395,9 +341,50 @@ class WarehouseService:
                 "Slot is occupied, clear goods before deletion"
             )
 
-        deleted = await self.slot_repo.delete(slot_id)
+        deleted = await self.slot_repo.delete_by_id(slot_id)
         if not deleted:
             raise WarehouseNotFoundError("Slot not found")
+
+    def _to_chamber_response(
+        self,
+        chamber: Chamber,
+        total_racks: int,
+        total_slots: int,
+        total_occupied: int,
+    ) -> ChamberResponse:
+        return ChamberResponse(
+            id=chamber.id,
+            name=chamber.name,
+            code=chamber.code,
+            category=chamber.category,
+            temperature=chamber.temperature,
+            status=chamber.status,
+            total_racks=total_racks,
+            total_slots=total_slots,
+            total_capacity=float(total_slots),
+            used_capacity=float(total_occupied),
+            created_at=chamber.created_at,
+            updated_at=chamber.updated_at,
+        )
+
+    def _to_rack_response(self, rack: Rack) -> RackResponse:
+        slot_count = len(rack.slots) if rack.slots else 0
+        occupied_count = (
+            sum(1 for s in rack.slots if s.status == SlotStatus.OCCUPIED)
+            if rack.slots
+            else 0
+        )
+        return RackResponse(
+            id=rack.id,
+            chamber_id=rack.chamber_id,
+            rack_number=rack.rack_number,
+            full_code=rack.full_code,
+            slot_count=slot_count,
+            occupied_count=occupied_count,
+            status=rack.status,
+            created_at=rack.created_at,
+            updated_at=rack.updated_at,
+        )
 
     def _to_slot_response(self, slot: Slot) -> SlotResponse:
         return SlotResponse(
