@@ -62,6 +62,7 @@ class UserRepository:
                 setattr(user, field, value)
 
         await self.db.flush()
+        await self.db.refresh(user)
         return user
 
     async def toggle_status(self, user_id: UUID) -> User | None:
@@ -71,6 +72,7 @@ class UserRepository:
 
         user.is_active = not user.is_active
         await self.db.flush()
+        await self.db.refresh(user)
         return user
 
     async def update_last_login(self, user_id: UUID, login_time: datetime) -> None:

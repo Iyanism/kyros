@@ -42,6 +42,7 @@ class ClientRepository:
 
         client.is_active = not client.is_active
         await self.db.flush()
+        await self.db.refresh(client)
         return client
 
     async def delete(self, client_id: UUID) -> bool:

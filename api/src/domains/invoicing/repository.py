@@ -71,6 +71,7 @@ class InvoiceRepository:
             return None
         invoice.status = status
         await self.db.flush()
+        await self.db.refresh(invoice)
         return invoice
 
     async def next_invoice_number(self, year: int) -> str:
