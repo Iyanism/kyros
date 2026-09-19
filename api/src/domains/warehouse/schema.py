@@ -35,7 +35,7 @@ class ChamberResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RackResponse(BaseModel):
@@ -49,7 +49,7 @@ class RackResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SlotResponse(BaseModel):
@@ -64,7 +64,7 @@ class SlotResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RackDetailResponse(RackResponse):

@@ -19,7 +19,7 @@ class OutboundOrderItemResponse(BaseModel):
     product_name: str
     quantity: float
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OutboundOrderCreate(BaseModel):
@@ -30,7 +30,6 @@ class OutboundOrderCreate(BaseModel):
 
 class OutboundOrderUpdate(BaseModel):
     total_quantity: float | None = None
-    status: OutboundOrderStatus | None = None
 
 
 class OutboundOrderStatusUpdate(BaseModel):
@@ -46,4 +45,4 @@ class OutboundOrderResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)

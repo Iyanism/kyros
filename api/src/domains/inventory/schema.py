@@ -26,7 +26,7 @@ class PalletResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PalletisationResult(BaseModel):
@@ -46,7 +46,7 @@ class SlotAllocationResponse(BaseModel):
     slot_code: str
     allocated_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AllocateRequest(BaseModel):
@@ -98,7 +98,7 @@ class PickRecordResponse(BaseModel):
     picked: bool
     picked_at: datetime | None = None
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PickListResponse(BaseModel):
@@ -110,4 +110,4 @@ class PickListResponse(BaseModel):
     records: list[PickRecordResponse]
     created_at: datetime
 
-    model_config: ConfigDict = ConfigDict(from_attributes=True)  # pyright: ignore[reportIncompatibleVariableOverride]
+    model_config = ConfigDict(from_attributes=True)

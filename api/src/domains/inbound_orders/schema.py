@@ -39,7 +39,6 @@ class InboundOrderCreate(BaseModel):
 class InboundOrderUpdate(BaseModel):
     vehicle_number: str | None = None
     total_quantity: float | None = None
-    status: OrderRequestStatus | None = None
 
 
 class InboundOrderStatusUpdate(BaseModel):
