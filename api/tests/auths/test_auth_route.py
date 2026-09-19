@@ -1,4 +1,5 @@
 import uuid
+import warnings
 from collections.abc import Mapping
 
 from httpx import AsyncClient
@@ -13,7 +14,7 @@ class TestAuthRoute:
     ):
         login_payload = {
             "email": created_user["email"],
-            "password": sample_user_data["password_hash"],
+            "password": sample_user_data["password"],
         }
         response = await client.post("/auth/login", json=login_payload)
         assert response.status_code == 200
@@ -40,7 +41,7 @@ class TestAuthRoute:
     ):
         login_payload = {
             "email": created_user["email"],
-            "password": sample_user_data["password_hash"],
+            "password": sample_user_data["password"],
         }
         response = await client.post("/auth/login", json=login_payload)
         assert response.status_code == 200
@@ -55,7 +56,7 @@ class TestAuthRoute:
     ):
         user = {
             "email": sample_user_data["email"],
-            "password_hash": sample_user_data["password_hash"],
+            "password": sample_user_data["password"],
             "full_name": sample_user_data["full_name"],
             "phone_number": sample_user_data["phone_number"],
         }
@@ -87,7 +88,7 @@ class TestAuthRoute:
             },
             "user": {
                 "email": f"cookieuser{uuid.uuid4().hex[:8]}@gmail.com",
-                "password_hash": "secret123",
+                "password": "secret123",
                 "full_name": "Cookie User",
                 "phone_number": "9000000007",
             },
@@ -105,7 +106,7 @@ class TestAuthRoute:
     ):
         login_payload = {
             "email": created_user["email"],
-            "password": sample_user_data["password_hash"],
+            "password": sample_user_data["password"],
         }
         login_response = await client.post("/auth/login", json=login_payload)
         assert login_response.status_code == 200
@@ -113,10 +114,12 @@ class TestAuthRoute:
         refresh_cookie = login_response.cookies.get("refresh_token")
         assert refresh_cookie is not None
 
-        refresh_response = await client.post(
-            "/auth/refresh",
-            cookies={"refresh_token": refresh_cookie},
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            refresh_response = await client.post(
+                "/auth/refresh",
+                cookies={"refresh_token": refresh_cookie},
+            )
         assert refresh_response.status_code == 200
         data = refresh_response.json()
         assert "access_token" in data
@@ -124,10 +127,12 @@ class TestAuthRoute:
         assert data["user_id"] == created_user["id"]
 
     async def test_refresh_token_invalid(self, client: AsyncClient):
-        response = await client.post(
-            "/auth/refresh",
-            cookies={"refresh_token": "invalidtoken"},
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            response = await client.post(
+                "/auth/refresh",
+                cookies={"refresh_token": "invalidtoken"},
+            )
         assert response.status_code == 401
 
     async def test_refresh_token_missing(self, client: AsyncClient):
@@ -142,7 +147,7 @@ class TestAuthRoute:
     ):
         login_payload = {
             "email": created_user["email"],
-            "password": sample_user_data["password_hash"],
+            "password": sample_user_data["password"],
         }
         login_response = await client.post("/auth/login", json=login_payload)
         assert login_response.status_code == 200
@@ -163,7 +168,7 @@ class TestAuthRoute:
             },
             "user": {
                 "email": f"me{uuid.uuid4().hex[:8]}@gmail.com",
-                "password_hash": "secret123",
+                "password": "secret123",
                 "full_name": "Me User",
                 "phone_number": "9000000005",
             },
@@ -192,7 +197,7 @@ class TestAuthRoute:
             },
             "user": {
                 "email": f"cookiemeuser{uuid.uuid4().hex[:8]}@gmail.com",
-                "password_hash": "secret123",
+                "password": "secret123",
                 "full_name": "Cookie Me User",
                 "phone_number": "9000000009",
             },
