@@ -4,6 +4,8 @@ from typing import Any
 
 from httpx import AsyncClient
 
+from tests.conftest import create_chamber
+
 _MISSING_UUID = "00000000-0000-0000-0000-000000000000"
 
 
@@ -172,6 +174,8 @@ class TestInboundOrderRoute:
         authed_client: AsyncClient,
         created_client: Mapping[str, str],
     ) -> None:
+        await create_chamber(authed_client, "frozen")
+        await create_chamber(authed_client, "chilled")
         order = await self._create_order(authed_client, created_client["id"])
         order_id: str = order["id"]
 
@@ -247,6 +251,8 @@ class TestInboundOrderRoute:
         authed_client: AsyncClient,
         created_client: Mapping[str, str],
     ) -> None:
+        await create_chamber(authed_client, "frozen")
+        await create_chamber(authed_client, "chilled")
         order = await self._create_order(authed_client, created_client["id"])
         order_id: str = order["id"]
 

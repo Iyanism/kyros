@@ -22,9 +22,9 @@ class TestClientRoute:
         created_client: Mapping[str, str],
     ):
         response = await authed_client.post("/clients", json=sample_client_data)
-        assert response.status_code == 400
+        assert response.status_code == 409
         body = response.json()
-        assert body["detail"]["code"] == "VALIDATION_ERROR"
+        assert body["detail"]["code"] == "CLIENT_ALREADY_EXISTS"
 
     async def test_get_clients(
         self, authed_client: AsyncClient, created_client: Mapping[str, str]

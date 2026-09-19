@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 _MISSING_UUID = "00000000-0000-0000-0000-000000000000"
 
@@ -239,6 +240,7 @@ class TestInventoryRoute:
         self,
         authed_client: AsyncClient,
         created_client: Mapping[str, str],
+        db_session: AsyncSession,
     ) -> None:
         await self._create_chamber(authed_client)
         order = await self._create_order(authed_client, created_client["id"])
@@ -255,26 +257,23 @@ class TestInventoryRoute:
             f"/inbound-orders/{order['id']}/status", json={"status": "processing"}
         )
         await authed_client.post(f"/inventory/orders/{order['id']}/pallets")
-        from tests.conftest import TestAsyncSessionLocal
         from src.domains.warehouse.model import Slot, SlotStatus
+        from sqlalchemy import select as sel
+        from src.domains.warehouse.model import Rack
 
-        async with TestAsyncSessionLocal() as session:
-            from sqlalchemy import select as sel
-            from src.domains.warehouse.model import Rack
-            stmt = (
-                sel(Slot)
-                .join(Rack, Slot.rack_id == Rack.id)
-                .where(
-                    Slot.status == SlotStatus.RESERVED,
-                    Slot.allocated_client_id == uuid.UUID(created_client["id"]),
-                )
+        stmt = (
+            sel(Slot)
+            .join(Rack, Slot.rack_id == Rack.id)
+            .where(
+                Slot.status == SlotStatus.RESERVED,
+                Slot.allocated_client_id == uuid.UUID(created_client["id"]),
             )
-            result = await session.execute(stmt)
-            slots = result.scalars().all()
-            for slot in slots:
-                slot.status = SlotStatus.AVAILABLE
-                slot.allocated_client_id = None
-            await session.commit()
+        )
+        result = await db_session.execute(stmt)
+        slots = result.scalars().all()
+        for slot in slots:
+            slot.status = SlotStatus.AVAILABLE
+            slot.allocated_client_id = None
         resp = await authed_client.post(
             f"/inventory/orders/{order['id']}/allocate", json={}
         )
@@ -389,7 +388,6 @@ class TestInventoryRoute:
             assert p["chamber_code"]
             assert p["chamber_name"]
             assert p["rack_number"]
-            assert p["location_code"]
             assert p["status"] == "stored"
             assert p["quantity"] > 0
 

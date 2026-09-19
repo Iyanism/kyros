@@ -114,7 +114,7 @@ class TestUserRoute:
             },
             "user": {
                 "email": f"blocked{uuid.uuid4().hex[:8]}@gmail.com",
-                "password_hash": "secret123",
+                "password": "secret123",
                 "full_name": "Blocked User",
                 "phone_number": "9000000003",
             },

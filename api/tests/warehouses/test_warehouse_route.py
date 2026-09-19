@@ -2,9 +2,9 @@ import uuid
 from typing import Any
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.warehouse.model import Slot, SlotStatus
-from tests.conftest import TestAsyncSessionLocal
 
 
 def _chamber_payload(
@@ -51,12 +51,10 @@ async def _get_first_slot_id(authed_client: AsyncClient, rack_id: str) -> str:
     return slot_id
 
 
-async def _mark_slot_occupied(slot_id: str) -> None:
-    async with TestAsyncSessionLocal() as session:
-        slot = await session.get(Slot, uuid.UUID(slot_id))
-        assert slot is not None
-        slot.status = SlotStatus.OCCUPIED
-        await session.commit()
+async def _mark_slot_occupied(slot_id: str, session: AsyncSession) -> None:
+    slot = await session.get(Slot, uuid.UUID(slot_id))
+    assert slot is not None
+    slot.status = SlotStatus.OCCUPIED
 
 
 class TestWarehouseRoute:
@@ -251,26 +249,26 @@ class TestWarehouseRoute:
         assert get_resp.status_code == 404
 
     async def test_delete_slot_occupied_conflict(
-        self, authed_client: AsyncClient
+        self, authed_client: AsyncClient, db_session: AsyncSession
     ) -> None:
         chamber = await _create_chamber(authed_client)
         chamber_id: str = chamber["id"]
         rack_id = await _get_first_rack_id(authed_client, chamber_id)
         slot_id = await _get_first_slot_id(authed_client, rack_id)
-        await _mark_slot_occupied(slot_id)
+        await _mark_slot_occupied(slot_id, db_session)
         resp = await authed_client.delete(f"/warehouses/slots/{slot_id}")
         assert resp.status_code == 409
         detail: dict[str, Any] = resp.json()["detail"]
         assert detail["code"] == "CONFLICT"
 
     async def test_delete_rack_occupied_conflict(
-        self, authed_client: AsyncClient
+        self, authed_client: AsyncClient, db_session: AsyncSession
     ) -> None:
         chamber = await _create_chamber(authed_client)
         chamber_id: str = chamber["id"]
         rack_id = await _get_first_rack_id(authed_client, chamber_id)
         slot_id = await _get_first_slot_id(authed_client, rack_id)
-        await _mark_slot_occupied(slot_id)
+        await _mark_slot_occupied(slot_id, db_session)
         resp = await authed_client.delete(f"/warehouses/racks/{rack_id}")
         assert resp.status_code == 409
         detail: dict[str, Any] = resp.json()["detail"]
@@ -294,13 +292,13 @@ class TestWarehouseRoute:
         assert resp.status_code == 204
 
     async def test_delete_chamber_occupied_conflict(
-        self, authed_client: AsyncClient
+        self, authed_client: AsyncClient, db_session: AsyncSession
     ) -> None:
         chamber = await _create_chamber(authed_client)
         chamber_id: str = chamber["id"]
         rack_id = await _get_first_rack_id(authed_client, chamber_id)
         slot_id = await _get_first_slot_id(authed_client, rack_id)
-        await _mark_slot_occupied(slot_id)
+        await _mark_slot_occupied(slot_id, db_session)
         resp = await authed_client.delete(f"/warehouses/chambers/{chamber_id}")
         assert resp.status_code == 409
         detail: dict[str, Any] = resp.json()["detail"]

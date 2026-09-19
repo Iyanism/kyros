@@ -508,6 +508,7 @@ class TestOutboundOrderLifecycle:
         client = await self._create_client(authed_client)
         client_id: str = client["id"]
         await self._create_chamber(authed_client, "frozen")
+        await self._create_chamber(authed_client, "chilled")
         await self._seed_inventory(authed_client, client_id)
 
         # --- Step 2: create outbound order (draft) -----------------
@@ -612,6 +613,7 @@ class TestOutboundOrderLifecycle:
     ) -> None:
         client = await self._create_client(authed_client)
         await self._create_chamber(authed_client, "frozen")
+        await self._create_chamber(authed_client, "chilled")
         await self._seed_inventory(authed_client, client["id"])
 
         outbound = await self._create_outbound(authed_client, client["id"])
@@ -641,6 +643,7 @@ class TestOutboundOrderLifecycle:
     ) -> None:
         client = await self._create_client(authed_client)
         await self._create_chamber(authed_client, "frozen")
+        await self._create_chamber(authed_client, "chilled")
         await self._seed_inventory(authed_client, client["id"])
 
         outbound = await self._create_outbound(authed_client, client["id"])
@@ -666,6 +669,7 @@ class TestOutboundOrderLifecycle:
     ) -> None:
         client = await self._create_client(authed_client)
         await self._create_chamber(authed_client, "frozen")
+        await self._create_chamber(authed_client, "chilled")
         await self._seed_inventory(authed_client, client["id"])
 
         outbound = await self._create_outbound(authed_client, client["id"])

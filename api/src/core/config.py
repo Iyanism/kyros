@@ -10,6 +10,8 @@ _ = load_dotenv()
 
 
 class Settings(BaseSettings):
+    APP_NAME: str = "Cold Storage Platform"
+    APP_VERSION: str = "v0.1.0"
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
 
     # Database Configurations
