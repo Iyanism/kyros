@@ -31,8 +31,9 @@ export function CreateChamberDialog({ onSubmitChamber }: CreateChamberDialogProp
     category: "frozen",
     temperature: 0.0,
     num_racks: 0,
-    slots_per_rack: 0,
-  })
+    bays_per_rack: 0,
+    levels_per_rack: 0,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +46,8 @@ export function CreateChamberDialog({ onSubmitChamber }: CreateChamberDialogProp
         category: "frozen",
         temperature: 0.0,
         num_racks: 0,
-        slots_per_rack: 0,
+        bays_per_rack: 0,
+        levels_per_rack: 0,
       });
       setOpen(false); // Only close on success
     } catch (err) {
@@ -128,30 +130,43 @@ export function CreateChamberDialog({ onSubmitChamber }: CreateChamberDialogProp
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="num_racks" className="text-[12px] font-semibold text-[#0f172a]">
-                  Number of Racks
+                  Racks
                 </Label>
                 <Input
                   id="num_racks"
                   type="number"
-                  placeholder="500"
+                  placeholder="5"
                   value={chamber.num_racks || ""}
                   onChange={(e) => setChamber({ ...chamber, num_racks: e.target.value ? parseInt(e.target.value) : 0 })}
                   required
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="slots_per_racks" className="text-[12px] font-semibold text-[#0f172a]">
-                  Slots per Rack
+                <Label htmlFor="bays_per_rack" className="text-[12px] font-semibold text-[#0f172a]">
+                  Bays/Rack
                 </Label>
                 <Input
-                  id="slots_per_racks"
+                  id="bays_per_rack"
                   type="number"
-                  placeholder="500"
-                  value={chamber.slots_per_rack || ""}
-                  onChange={(e) => setChamber({ ...chamber, slots_per_rack: e.target.value ? parseInt(e.target.value) : 0 })}
+                  placeholder="5"
+                  value={chamber.bays_per_rack || ""}
+                  onChange={(e) => setChamber({ ...chamber, bays_per_rack: e.target.value ? parseInt(e.target.value) : 0 })}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="levels_per_rack" className="text-[12px] font-semibold text-[#0f172a]">
+                  Levels/Rack
+                </Label>
+                <Input
+                  id="levels_per_rack"
+                  type="number"
+                  placeholder="2"
+                  value={chamber.levels_per_rack || ""}
+                  onChange={(e) => setChamber({ ...chamber, levels_per_rack: e.target.value ? parseInt(e.target.value) : 0 })}
                   required
                 />
               </div>

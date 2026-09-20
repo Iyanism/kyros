@@ -1,7 +1,7 @@
 export type ChamberCategory = "frozen" | "chilled" | "ambient";
 export type ChamberStatus = "active" | "maintenance" | "inactive";
 export type RackStatus = "active" | "full" | "maintenance" | "inactive";
-export type SlotOccupancy = "empty" | "partial" | "filled";
+export type SlotStatus = "available" | "reserved" | "occupied" | "maintenance";
 
 
 export interface ChamberRequest {
@@ -10,7 +10,8 @@ export interface ChamberRequest {
   category: ChamberCategory;
   temperature: number;
   num_racks: number;
-  slots_per_rack: number;
+  bays_per_rack: number;
+  levels_per_rack: number;
 }
 
 export interface ChamberSummary {
@@ -51,12 +52,13 @@ export interface RackDetail extends RackSummary {
 export interface SlotResponse {
   id: string;
   rack_id: string;
-  slot_number: string;
-  full_code: string;
-  occupancy: SlotOccupancy;
-  is_occupied: boolean;
+  bay: number;
+  level: number;
+  depth: number;
+  location_code: string;
+  status: SlotStatus;
   allocated_client_id: string | null;
-  quantity: number | null;
   created_at: string;
   updated_at: string;
 }
+

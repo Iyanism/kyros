@@ -60,13 +60,16 @@ export function ChamberTabs({
         {/* Legend for Visual Slot Map */}
         <div className="flex items-center gap-4 rounded-xl border border-[#e2e8f0] bg-white px-4 py-2 text-[11px] font-medium text-[#475569]">
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded bg-[#2457e6]" /> Filled (1.0 MT)
+            <span className="h-3 w-3 rounded bg-[#2457e6]" /> Occupied (1.0 MT)
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded border border-[#2457e6] bg-[#2457e6]/25" /> Partial Fill
+            <span className="h-3 w-3 rounded bg-amber-500" /> Reserved
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded border border-dashed border-[#cbd5e1] bg-[#f8fafc]" /> Empty Position
+            <span className="h-3 w-3 rounded bg-red-500" /> Maintenance
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded border border-dashed border-[#cbd5e1] bg-[#f8fafc]" /> Available Slot
           </span>
         </div>
       </div>

@@ -21,13 +21,15 @@ const formatDate = (dateString: string) => {
 };
 
 // Helper to get status color
-const getStatusColor = (occupancy: SlotResponse['occupancy']) => {
-  switch (occupancy) {
-    case 'filled':
+const getStatusColor = (status: SlotResponse['status']) => {
+  switch (status) {
+    case 'occupied':
       return 'bg-[#2457e6] text-white';
-    case 'partial':
-      return 'bg-[#2457e6]/15 text-[#2457e6] border border-[#2457e6]/40';
-    case 'empty':
+    case 'reserved':
+      return 'bg-amber-500 text-white';
+    case 'maintenance':
+      return 'bg-red-500 text-white';
+    case 'available':
     default:
       return 'bg-[#f8fafc] text-[#94a3b8] border border-dashed border-[#cbd5e1]';
   }
@@ -66,10 +68,9 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
     );
   }
 
-  // Format the quantity with commas
-  const formattedQuantity = activeSlot.quantity?.toLocaleString() ?? '0';
-  const isOccupied = activeSlot.occupancy !== 'empty';
-  const statusColor = getStatusColor(activeSlot.occupancy);
+  const isOccupied = activeSlot.status === 'occupied';
+  const statusColor = getStatusColor(activeSlot.status);
+  const formattedQuantity = isOccupied ? '1,000' : '0';
 
   return (
     <div className="rounded-[16px] border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between h-full">
@@ -90,11 +91,11 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
                   Location Address
                 </div>
                 <div className="font-display text-[15px] font-bold text-[#0f172a] mt-1 break-all">
-                  {activeSlot.full_code}
+                  {activeSlot.location_code}
                 </div>
               </div>
               <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${statusColor}`}>
-                {activeSlot.occupancy}
+                {activeSlot.status}
               </div>
             </div>
           </div>
@@ -103,10 +104,10 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-[#f8fafc] rounded-lg p-3">
               <div className="text-[10px] font-bold uppercase tracking-wider text-[#94a3b8] flex items-center gap-1">
-                <Tag className="h-3 w-3" /> Slot
+                <Tag className="h-3 w-3" /> Position
               </div>
               <div className="font-semibold text-[13px] text-[#0f172a] mt-1">
-                {activeSlot.slot_number}
+                Bay {activeSlot.bay}, Level {activeSlot.level}
               </div>
             </div>
 
@@ -115,7 +116,7 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
                 <Package className="h-3 w-3" /> Status
               </div>
               <div className="font-semibold text-[13px] text-[#0f172a] mt-1 capitalize">
-                {activeSlot.is_occupied ? 'Occupied' : 'Available'}
+                {activeSlot.status}
               </div>
             </div>
           </div>
@@ -130,15 +131,6 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
                 {isOccupied && activeSlot.allocated_client_id
                   ? activeSlot.allocated_client_id
                   : 'N/A'}
-              </span>
-            </div>
-
-            <div className="flex justify-between border-b border-[#f1f5f9] pb-2">
-              <span className="text-[#64748b] flex items-center gap-1">
-                <Weight className="h-3 w-3 text-[#2457e6]" /> Quantity
-              </span>
-              <span className="font-semibold text-[#0f172a]">
-                {formattedQuantity} kg
               </span>
             </div>
 
@@ -162,20 +154,18 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
           </div>
 
           {/* Progress Bar for Capacity */}
-          {isOccupied && activeSlot.quantity && (
-            <div className="mt-2">
-              <div className="flex justify-between text-[10px] text-[#64748b] mb-1">
-                <span>Capacity Used</span>
-                <span>{Math.round((activeSlot.quantity / 1000) * 100)}%</span>
-              </div>
-              <div className="w-full bg-[#f1f5f9] h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-[#2457e6] h-full rounded-full transition-all duration-300"
-                  style={{ width: `${Math.min((activeSlot.quantity / 1000) * 100, 100)}%` }}
-                />
-              </div>
+          <div className="mt-2">
+            <div className="flex justify-between text-[10px] text-[#64748b] mb-1">
+              <span>Capacity Used</span>
+              <span>{isOccupied ? '100%' : '0%'}</span>
             </div>
-          )}
+            <div className="w-full bg-[#f1f5f9] h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-[#2457e6] h-full rounded-full transition-all duration-300"
+                style={{ width: isOccupied ? '100%' : '0%' }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

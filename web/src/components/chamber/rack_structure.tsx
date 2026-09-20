@@ -59,8 +59,9 @@ export function RackStructure({
           {/* Slot Matrix Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
             {rack.slots.map((slot) => {
-              const isFilled = slot.occupancy === "filled";
-              const isPartial = slot.occupancy === "partial";
+              const isOccupied = slot.status === "occupied";
+              const isReserved = slot.status === "reserved";
+              const isMaintenance = slot.status === "maintenance";
               const isSelected = activeSlot?.id === slot.id;
 
               return (
@@ -70,42 +71,37 @@ export function RackStructure({
                   className={`group relative cursor-pointer rounded-[12px] p-3.5 transition-all ${
                     isSelected ? "ring-2 ring-[#2457e6] ring-offset-2" : ""
                   } ${
-                    isFilled
+                    isOccupied
                       ? "bg-[#2457e6] text-white shadow-sm hover:brightness-110"
-                      : isPartial
-                      ? "bg-[#2457e6]/15 border border-[#2457e6]/40 text-[#2457e6] hover:bg-[#2457e6]/25"
+                      : isReserved
+                      ? "bg-amber-500 text-white shadow-sm hover:brightness-110"
+                      : isMaintenance
+                      ? "bg-red-500 text-white shadow-sm hover:brightness-110"
                       : "bg-[#f8fafc] border border-dashed border-[#cbd5e1] text-[#94a3b8] hover:border-[#94a3b8] hover:text-[#475569]"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-display text-[12px] font-bold">
-                      {slot.slot_number}
+                      B{slot.bay}-L{slot.level}
                     </span>
                     <span
                       className={`text-[9px] font-bold uppercase rounded px-1.5 py-0.5 ${
-                        isFilled
+                        isOccupied || isReserved || isMaintenance
                           ? "bg-white/20 text-white"
-                          : isPartial
-                          ? "bg-[#2457e6] text-white"
                           : "bg-[#e2e8f0] text-[#64748b]"
                       }`}
                     >
-                      {slot.occupancy}
+                      {slot.status}
                     </span>
                   </div>
 
                   <div className="text-[11px] font-medium truncate">
-                    {slot.is_occupied && slot.allocated_client_id
+                    {isOccupied && slot.allocated_client_id
                       ? `Client ${slot.allocated_client_id.slice(0, 8)}`
-                      : "Empty Slot"}
+                      : slot.status === "available"
+                      ? "Available Slot"
+                      : capitalise(slot.status)}
                   </div>
-
-                  <div className="mt-2 flex items-center justify-between text-[10px] opacity-80">
-                    <span>Qty</span>
-                    <span className="font-bold">{slot.quantity ?? 0}</span>
-                  </div>
-
-
                 </div>
               );
             })}
