@@ -2,7 +2,12 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import HashingError, InvalidHash, VerificationError, VerifyMismatchError
+from argon2.exceptions import (
+    HashingError,
+    InvalidHash,
+    VerificationError,
+    VerifyMismatchError,
+)
 from jwt import ExpiredSignatureError, PyJWTError
 
 from src.core.config import settings
@@ -44,7 +49,7 @@ def verify_access_token(token: str) -> dict[str, object] | None:
         payload = jwt.decode(
             token,
             settings.ACCESS_TOKEN_SECRET_KEY.get_secret_value(),
-            settings.JWT_ALGORITHM,
+            [settings.JWT_ALGORITHM],
         )
 
         return payload
@@ -71,7 +76,7 @@ def verify_refresh_token(token: str) -> dict[str, object] | None:
         payload = jwt.decode(
             token,
             settings.REFRESH_TOKEN_SECRET_KEY.get_secret_value(),
-            settings.JWT_ALGORITHM,
+            [settings.JWT_ALGORITHM],
         )
 
         if payload.get("type") != "refresh":
