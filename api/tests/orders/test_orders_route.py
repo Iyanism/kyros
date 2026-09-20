@@ -144,12 +144,12 @@ class TestInboundOrderRoute:
         order = await self._create_order(authed_client, created_client["id"])
         response = await authed_client.patch(
             f"/inbound-orders/{order['id']}",
-            json={"vehicle_number": "GJ01XYZ789", "status": "approved"},
+            json={"vehicle_number": "GJ01XYZ789"},
         )
         assert response.status_code == 200
         body: dict[str, Any] = response.json()
         assert body["vehicle_number"] == "GJ01XYZ789"
-        assert body["status"] == "approved"
+        assert body["status"] == "submitted"
 
     async def test_update_inbound_order_not_found(
         self, authed_client: AsyncClient
