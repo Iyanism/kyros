@@ -138,11 +138,17 @@ async def list_stock_movements_by_order(
     service = StockService(db)
     try:
         if not ctx.is_staff:
-            from src.domains.inbound_orders.service import InboundOrderService
+            try:
+                from src.domains.inbound_orders.service import InboundOrderService
 
-            order_service = InboundOrderService(db)
-            order = await order_service.get_by_id(order_id)
-            if order.client_id != ctx.client_id:
+                order = await InboundOrderService(db).get_by_id(order_id)
+                client_id = order.client_id
+            except Exception:
+                from src.domains.outbound_orders.service import OutboundOrderService
+
+                order = await OutboundOrderService(db).get_by_id(order_id)
+                client_id = order.client_id
+            if client_id != ctx.client_id:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Not found",

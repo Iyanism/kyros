@@ -99,6 +99,10 @@ class InvoiceService:
             if weight_mt <= 0:
                 continue
 
+            allocation = next((a for a in pallet.allocations if a.is_active), None)
+            if allocation is None or not (period_start <= allocation.allocated_at <= period_end):
+                continue
+
             handling_amount = round(weight_mt * h_rate, 2)
             subtotal += handling_amount
 
