@@ -1,5 +1,5 @@
 import type { ClientCreate, ClientResponse } from "./client";
-import type { UserResponse } from "./user";
+import type { UserResponse, UserRole } from "./user";
 
 export interface LoginRequest {
   email: string;
@@ -8,13 +8,17 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
-  user: UserResponse;
+  user_id: string;
+  client_id: string | null;
+  email: string;
+  role: UserRole;
 }
 
 export interface RegisterUserInfo {
   email: string;
-  password_hash: string;
+  password: string;
   full_name: string;
   phone_number?: string | null;
 }
@@ -29,3 +33,4 @@ export interface RegistrationResponse {
   user: UserResponse;
   client: ClientResponse;
 }
+

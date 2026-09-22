@@ -21,7 +21,7 @@ export function CreateUserDialog({ onAddUser }: CreateUserDialogProps) {
     const [user, setUser] = useState<UserInfo>({
         full_name: "",
         email: "",
-        password_hash: "",
+        password: "",
         phone_number: "",
         role: "client",
         client_id: null
@@ -115,8 +115,8 @@ export function CreateUserDialog({ onAddUser }: CreateUserDialogProps) {
                             <PasswordInput
                                 id="password"
                                 placeholder="e.g. @ravikishan123."
-                                value={user.password_hash}
-                                onChange={(e) => setUser({ ...user, password_hash: e.target.value })}
+                                value={user.password}
+                                onChange={(e) => setUser({ ...user, password: e.target.value })}
                                 required
                             />
                         </div>

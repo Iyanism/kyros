@@ -44,7 +44,7 @@ export function RegistrationForm() {
     full_name: "",
     phone_number: "",
     email: "",
-    password_hash: "",
+    password: "",
   });
 
   const handleSubmit = async (e: FormEvent) => {
@@ -227,8 +227,8 @@ export function RegistrationForm() {
                 <PasswordInput
                   id="account-password"
                   placeholder="At least 8 characters"
-                  value={user.password_hash}
-                  onChange={(e) => setUser({ ...user, password_hash: e.target.value })}
+                  value={user.password}
+                  onChange={(e) => setUser({ ...user, password: e.target.value })}
                 />
               </FormField>
             </div>

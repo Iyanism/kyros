@@ -1,4 +1,4 @@
-import { login_user, register_user } from "@/lib/api/auth";
+import { getCurrentUser, login_user, logout as apiLogout, register_user } from "@/lib/api/auth";
 import { loginSchema } from "@/lib/validators/auth";
 import { useAuthStore } from "@/store/authStore";
 import type { LoginRequest, LoginResponse, RegistrationRequest } from "@/types/auth";
@@ -10,12 +10,19 @@ export function useAuth() {
   async function login(payload: LoginRequest) {
     const parsed = loginSchema.parse(payload);
     const response: LoginResponse = await login_user(parsed);
-    setSession(response.access_token, response.user);
+    const currentUser = await getCurrentUser();
+    setSession(response.access_token, currentUser);
     return response;
   }
 
-  function logout() {
-    clearSession();
+  async function logout() {
+    try {
+      await apiLogout();
+    } catch {
+      // Ignore API logout errors if token is already expired
+    } finally {
+      clearSession();
+    }
   }
 
   async function register(payload: RegistrationRequest) {
@@ -36,3 +43,4 @@ export function useAuth() {
     register,
   };
 }
+

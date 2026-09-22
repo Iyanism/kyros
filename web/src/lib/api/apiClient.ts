@@ -10,6 +10,7 @@ export interface ApiError {
 export const apiClient = axios.create({
   baseURL: env.apiUrl,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use((config) => {

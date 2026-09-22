@@ -4,11 +4,11 @@ export type UserRole = "admin" | "operator" | "client";
 
 export interface UserInfo {
   email: string;
-  password_hash: string;
+  password: string;
   full_name: string;
   phone_number: string | null;
   role: UserRole;
-  client_id: string | null
+  client_id: string | null;
 }
 
 export interface UserResponse {

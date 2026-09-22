@@ -19,8 +19,8 @@ export const companySchema = z.object({
 export const accountSchema = z.object({
   full_name: z.string().min(2, "Full name is required"),
   phone_number: z.string().nullable().optional().transform((v) => v || null),
-  email: z.email("Enter a valid login email"),
-  password_hash: z.string().min(8, "Password must be at least 8 characters"),
+  email: z.string().email("Enter a valid login email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export const registerSchema = z.object({
