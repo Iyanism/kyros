@@ -29,6 +29,7 @@ export const ADMIN_NAV: RoleSidebarNav = {
   mainMenu: [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
     { icon: Warehouse, label: "Chambers", href: "/chamber" },
+    { icon: Boxes, label: "Inventory Lookup", href: "/inventory" },
     { icon: Package, label: "Inbound Orders", badge: "3", href: "/inbound" },
     { icon: Truck, label: "Outbound Orders", badge: "2", href: "/outbound" },
     { icon: CreditCard, label: "Billing & Invoices", badge: "1", href: "/billing" },
