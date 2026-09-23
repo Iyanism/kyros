@@ -13,7 +13,11 @@ from src.domains.users.schema import (
     UserResponse,
     UserUpdate,
 )
-from src.domains.users.service import UserAlreadyExistsError, UserNotFoundError, UserService
+from src.domains.users.service import (
+    UserAlreadyExistsError,
+    UserNotFoundError,
+    UserService,
+)
 
 router = APIRouter(
     prefix="/users",
