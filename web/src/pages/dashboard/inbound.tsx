@@ -6,6 +6,7 @@ import { InboundFilters } from "@/components/inbound/inbound_filters";
 import { InboundTable } from "@/components/inbound/inbound_table";
 import { CreateInboundOrderDialog } from "@/components/inbound/create_inbound_order_dialog";
 import { InboundDetailDialog } from "@/components/inbound/inbound_detail_dialog";
+import { InboundProcessingDialog } from "@/components/inbound/inbound_processing_dialog";
 import {
   get_inbound_orders,
   update_inbound_order_status,
@@ -28,6 +29,11 @@ export function Inbound() {
   const [activeDetailOrder, setActiveDetailOrder] =
     useState<InboundOrderResponse | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // Active processing wizard modal order
+  const [activeProcessingOrder, setActiveProcessingOrder] =
+    useState<InboundOrderResponse | null>(null);
+  const [processingModalOpen, setProcessingModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +77,7 @@ export function Inbound() {
         setActiveDetailOrder(updated);
       }
       toast.success(
-        `Order ${updated.order_number} status updated to '${newStatus}'`,
+        `Order INB-${updated.id.slice(0, 8)} status updated to '${newStatus}'`,
       );
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -102,11 +108,25 @@ export function Inbound() {
     setDetailModalOpen(true);
   };
 
+  const handleOpenProcessingFlow = (order: InboundOrderResponse) => {
+    setActiveProcessingOrder(order);
+    setProcessingModalOpen(true);
+  };
+
+  const handleProcessingComplete = (updatedOrder: InboundOrderResponse) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)),
+    );
+    if (activeDetailOrder?.id === updatedOrder.id) {
+      setActiveDetailOrder(updatedOrder);
+    }
+  };
+
   const filteredOrders = orders.filter((o) => {
     const term = searchTerm.toLowerCase().trim();
     const matchesSearch =
       !term ||
-      o.order_number.toLowerCase().includes(term) ||
+      `inb-${o.id}`.toLowerCase().includes(term) ||
       o.vehicle_number.toLowerCase().includes(term) ||
       (o.client_name && o.client_name.toLowerCase().includes(term)) ||
       o.items.some(
@@ -174,6 +194,7 @@ export function Inbound() {
             onSelectOrder={handleOpenDetail}
             onStatusChange={handleStatusChange}
             onDeleteOrder={handleDeleteOrder}
+            onOpenProcessingFlow={handleOpenProcessingFlow}
           />
         </div>
       </main>
@@ -183,7 +204,16 @@ export function Inbound() {
         open={detailModalOpen}
         onOpenChange={setDetailModalOpen}
         onStatusChange={handleStatusChange}
+        onOpenProcessingFlow={handleOpenProcessingFlow}
+      />
+
+      <InboundProcessingDialog
+        order={activeProcessingOrder}
+        open={processingModalOpen}
+        onOpenChange={setProcessingModalOpen}
+        onComplete={handleProcessingComplete}
       />
     </div>
   );
 }
+

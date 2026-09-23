@@ -1,7 +1,7 @@
 import type {
   InboundOrderRequest,
   InboundOrderResponse,
-  OrderItem,
+  OrderItemCreate,
 } from "@/types/order";
 import { useMemo, useState, type SubmitEventHandler } from "react";
 import {
@@ -19,6 +19,7 @@ import {
   Layers,
   Package,
   Plus,
+  Thermometer,
   Trash2,
   Truck,
 } from "lucide-react";
@@ -35,17 +36,19 @@ import {
 import { create_inbound_order } from "@/lib/api/order";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { getApiErrorMessage } from "@/lib/api/apiClient";
+import type { ChamberCategory } from "@/types/chamber";
 
 interface CreateInboundOrderDialogProps {
   onAddOrder: (order: InboundOrderResponse) => void;
 }
 
-const DEFAULT_ITEM: OrderItem = {
+const DEFAULT_ITEM: OrderItemCreate = {
   product_name: "",
   quantity: 0,
-  unit: "kg",
-  batch_number: null,
-  expiry_date: null,
+  temperature_category: "frozen",
+  batch_number: "",
+  expiry_date: "",
 };
 
 const INITIAL_FORM: InboundOrderRequest = {
@@ -70,14 +73,14 @@ export function CreateInboundOrderDialog({
   }, [form.items]);
 
   const handleAddItem = () => {
-    setForm({ ...form, items: [...form.items, DEFAULT_ITEM] });
+    setForm({ ...form, items: [...form.items, { ...DEFAULT_ITEM }] });
   };
 
   const handleRemoveItem = (idx: number) => {
     setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
   };
 
-  const handleUpdateItem = (idx: number, item: OrderItem) => {
+  const handleUpdateItem = (idx: number, item: OrderItemCreate) => {
     setForm({
       ...form,
       items: form.items.map((i, iIdx) => (iIdx === idx ? item : i)),
@@ -90,24 +93,33 @@ export function CreateInboundOrderDialog({
 
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-    if (!user?.client_id) {
-      throw toast.error("Failed to submit user doesn't have associated client");
+    const clientId = user?.client_id || form.client_id;
+    if (!clientId) {
+      toast.error("Please select or log in with an associated client.");
+      return;
     }
-    if (totalQuantity === 0) return;
-    const payload = {
+    if (totalQuantity === 0) {
+      toast.error("Total quantity must be greater than 0.");
+      return;
+    }
+
+    const payload: InboundOrderRequest = {
       ...form,
-      client_id: user?.client_id,
+      client_id: clientId,
       total_quantity: totalQuantity,
+      items: form.items.map((it) => ({
+        ...it,
+        expiry_date: it.expiry_date ? new Date(it.expiry_date).toISOString() : new Date().toISOString(),
+      })),
     };
 
     try {
       const response = await create_inbound_order(payload);
       onAddOrder(response);
+      toast.success("Inbound order created successfully");
       setOpen(false);
     } catch (error) {
-      toast.error("Failed to create inbound order", {
-        description: error instanceof Error ? error.message : String(error),
-      });
+      toast.error(getApiErrorMessage(error));
     }
   };
 
@@ -135,8 +147,7 @@ export function CreateInboundOrderDialog({
                 Create Inbound Order
               </DialogTitle>
               <DialogDescription className="text-[12px] text-[#64748b] mt-0.5">
-                Record new incoming shipment and batch items for cold storage
-                intake.
+                Record new incoming shipment and batch items for cold storage intake.
               </DialogDescription>
             </div>
           </div>
@@ -153,8 +164,7 @@ export function CreateInboundOrderDialog({
                     htmlFor="order-vehicle"
                     className="text-[12px] font-semibold text-[#0f172a] flex items-center gap-1.5"
                   >
-                    <Truck className="h-3.5 w-3.5 text-[#2457e6]" /> Vehicle
-                    Number
+                    <Truck className="h-3.5 w-3.5 text-[#2457e6]" /> Vehicle Number
                   </Label>
                   <Input
                     id="order-vehicle"
@@ -170,6 +180,7 @@ export function CreateInboundOrderDialog({
                   />
                 </div>
               </div>
+
               {/* Order Items Section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -179,8 +190,7 @@ export function CreateInboundOrderDialog({
                       Order Items Breakdown ({form.items.length})
                     </h3>
                     <p className="text-[11px] text-[#64748b]">
-                      Specify products, quantities, batch codes, and expiry
-                      dates.
+                      Specify products, quantities, temperature zone, batch code, and expiry date.
                     </p>
                   </div>
                   <Button
@@ -193,7 +203,7 @@ export function CreateInboundOrderDialog({
                   </Button>
                 </div>
 
-                {/* Items Table / List with Scrollbar handling */}
+                {/* Items Table / List */}
                 <div
                   className="rounded-xl border border-[#e2e8f0] bg-white max-h-72 overflow-y-auto p-3 space-y-3"
                   style={{
@@ -231,8 +241,7 @@ export function CreateInboundOrderDialog({
                         {/* Product Name (5 cols) */}
                         <div className="sm:col-span-5 space-y-1">
                           <Label className="text-[11px] font-semibold text-[#475569]">
-                            Product Name{" "}
-                            <span className="text-[#ef4444]">*</span>
+                            Product Name <span className="text-[#ef4444]">*</span>
                           </Label>
                           <Input
                             placeholder="e.g. Frozen Atlantic Salmon"
@@ -251,7 +260,7 @@ export function CreateInboundOrderDialog({
                         {/* Quantity (3 cols) */}
                         <div className="sm:col-span-3 space-y-1">
                           <Label className="text-[11px] font-semibold text-[#475569]">
-                            Quantity <span className="text-[#ef4444]">*</span>
+                            Quantity (kg) <span className="text-[#ef4444]">*</span>
                           </Label>
                           <Input
                             type="number"
@@ -270,75 +279,72 @@ export function CreateInboundOrderDialog({
                           />
                         </div>
 
-                        {/* Unit (4 cols) */}
+                        {/* Temp Category (4 cols) */}
                         <div className="sm:col-span-4 space-y-1">
-                          <Label className="text-[11px] font-semibold text-[#475569]">
-                            Unit <span className="text-[#ef4444]">*</span>
+                          <Label className="text-[11px] font-semibold text-[#475569] flex items-center gap-1">
+                            <Thermometer className="h-3 w-3 text-[#2457e6]" /> Temp Zone <span className="text-[#ef4444]">*</span>
                           </Label>
                           <Select
-                            value={item.unit}
+                            value={item.temperature_category}
                             onValueChange={(val) =>
                               handleUpdateItem(idx, {
                                 ...item,
-                                unit: val as OrderItem["unit"],
+                                temperature_category: val as ChamberCategory,
                               })
                             }
                           >
                             <SelectTrigger className="w-full bg-white text-xs h-9 border-[#e2e8f0] focus:ring-[#2457e6] focus:border-[#2457e6]">
-                              <SelectValue placeholder="Select unit" />
+                              <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent className="bg-white border-[#e2e8f0]">
-                              <SelectItem value="kg" className="text-xs">
-                                Kilograms (kg)
+                              <SelectItem value="frozen" className="text-xs">
+                                Frozen Zone
                               </SelectItem>
-                              <SelectItem value="lb" className="text-xs">
-                                Pounds (lb)
+                              <SelectItem value="chilled" className="text-xs">
+                                Chilled Zone
                               </SelectItem>
-                              <SelectItem value="g" className="text-xs">
-                                Grams (g)
-                              </SelectItem>
-                              <SelectItem value="oz" className="text-xs">
-                                Ounces (oz)
+                              <SelectItem value="ambient" className="text-xs">
+                                Ambient Zone
                               </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
 
-                      {/* Batch Number & Expiry Date (Optional inputs) */}
+                      {/* Batch Number & Expiry Date */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-[#f1f5f9]">
                         <div className="space-y-1">
                           <Label className="text-[10px] font-medium text-[#64748b] flex items-center gap-1">
-                            <Hash className="h-3 w-3 text-[#94a3b8]" /> Batch /
-                            Lot Number (Optional)
+                            <Hash className="h-3 w-3 text-[#94a3b8]" /> Batch Number <span className="text-[#ef4444]">*</span>
                           </Label>
                           <Input
                             placeholder="e.g. BAT-2026-09"
-                            value={item.batch_number || ""}
+                            value={item.batch_number}
                             onChange={(e) =>
                               handleUpdateItem(idx, {
                                 ...item,
                                 batch_number: e.target.value,
                               })
                             }
+                            required
                             className="bg-white text-xs h-8"
                           />
                         </div>
 
                         <div className="space-y-1">
                           <Label className="text-[10px] font-medium text-[#64748b] flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-[#94a3b8]" />{" "}
-                            Expiry Date (Optional)
+                            <Calendar className="h-3 w-3 text-[#94a3b8]" /> Expiry Date <span className="text-[#ef4444]">*</span>
                           </Label>
                           <Input
                             type="date"
-                            value={item.expiry_date || ""}
+                            value={item.expiry_date}
                             onChange={(e) =>
                               handleUpdateItem(idx, {
                                 ...item,
                                 expiry_date: e.target.value,
                               })
                             }
+                            required
                             className="bg-white text-xs h-8"
                           />
                         </div>
@@ -348,7 +354,7 @@ export function CreateInboundOrderDialog({
                 </div>
               </div>
 
-              {/* Bottom Calculation and Summary Control Bar */}
+              {/* Summary Control Bar */}
               <div className="p-4 rounded-xl bg-[#eef2ff] border border-[#c7d2fe] space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#c7d2fe]/60">
                   <div>
@@ -356,18 +362,18 @@ export function CreateInboundOrderDialog({
                       htmlFor="total-quantity"
                       className="text-[11px] font-bold uppercase tracking-wider text-[#3730a3]"
                     >
-                      Total Quantity (Units)
+                      Total Line Items
                     </Label>
                     <div className="text-[18px] font-black text-[#2457e6] mt-0.5">
                       {form.items.length}{" "}
                       <span className="text-[12px] font-semibold text-[#4338ca]">
-                        units
+                        items
                       </span>
                     </div>
                   </div>
                   <div className="sm:border-l sm:border-[#c7d2fe]/60 sm:pl-4">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#3730a3] block">
-                      Total Estimated Net Weight
+                      Total Inbound Net Weight
                     </span>
                     <div className="text-[16px] font-extrabold text-[#1e1b4b] mt-0.5">
                       {totalQuantity.toLocaleString(undefined, {
@@ -386,7 +392,7 @@ export function CreateInboundOrderDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(true)}
+              onClick={() => setOpen(false)}
             >
               Cancel
             </Button>

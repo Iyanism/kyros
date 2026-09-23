@@ -3,11 +3,11 @@ import { z } from "zod";
 export const orderItemSchema = z.object({
   product_name: z.string().trim().min(1, "Product name is required"),
   quantity: z.coerce.number().positive("Quantity must be greater than 0"),
-  unit: z.enum(["kg", "lb", "g", "oz"], {
-    message: "Unit must be kg, lb, g, or oz",
+  temperature_category: z.enum(["frozen", "chilled", "ambient"], {
+    message: "Temperature category must be frozen, chilled, or ambient",
   }),
-  batch_number: z.string().trim().optional().nullable().transform((v) => (v === "" ? undefined : v ?? undefined)),
-  expiry_date: z.string().trim().optional().nullable().transform((v) => (v === "" ? undefined : v ?? undefined)),
+  batch_number: z.string().trim().min(1, "Batch number is required"),
+  expiry_date: z.string().trim().min(1, "Expiry date is required"),
 });
 
 export const inboundOrderSchema = z.object({

@@ -47,11 +47,13 @@ export function InboundFilters({
             className="bg-transparent text-xs font-semibold text-[#0f172a] focus:outline-none cursor-pointer"
           >
             <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="received">Received</option>
-            <option value="inspecting">Inspecting</option>
+            <option value="submitted">Submitted</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="in_transit">In Transit</option>
+            <option value="arrived">Arrived</option>
+            <option value="processing">Processing</option>
             <option value="stored">Stored</option>
-            <option value="cancelled">Cancelled</option>
           </select>
         </div>
 

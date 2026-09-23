@@ -1,27 +1,48 @@
+import type { ChamberCategory } from "./chamber";
+
+export type OrderStatus =
+  | "submitted"
+  | "approved"
+  | "rejected"
+  | "in_transit"
+  | "arrived"
+  | "processing"
+  | "stored";
+
+export interface OrderItemCreate {
+  product_name: string;
+  quantity: number;
+  temperature_category: ChamberCategory;
+  batch_number: string;
+  expiry_date: string;
+}
+
+export interface OrderItemResponse {
+  id: string;
+  order_id: string;
+  product_name: string;
+  quantity: number;
+  temperature_category: ChamberCategory;
+  batch_number: string;
+  expiry_date: string;
+}
+
 export interface InboundOrderRequest {
   client_id: string;
   vehicle_number: string;
   total_quantity: number;
-  items: OrderItem[];
+  items: OrderItemCreate[];
 }
 
-export interface OrderItem {
-  product_name: string;
-  quantity: number;
-  unit: "kg" | "lb" | "g" | "oz";
-  batch_number?: string | null;
-  expiry_date?: string | null;
-}
-
-export type OrderStatus = "pending" | "received" | "inspecting" | "stored" | "cancelled";
-
-export interface InboundOrderResponse extends InboundOrderRequest {
+export interface InboundOrderResponse {
   id: string;
-  order_number: string;
-  client_name: string;
+  client_id: string;
+  vehicle_number: string;
+  total_quantity: number;
   status: OrderStatus;
-  received_at: string;
+  items: OrderItemResponse[];
   created_at: string;
   updated_at: string;
-  notes?: string | undefined;
+  client_name?: string;
 }
+

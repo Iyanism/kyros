@@ -3,13 +3,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { InboundOrderStatusBadge } from "./inbound_status_badge";
 import { calculateTotalWeightInKg } from "./inbound_items_list";
-import { Eye, Trash2, Truck, Package, Layers } from "lucide-react";
+import { Eye, Trash2, Truck, Package, Layers, CheckCircle2, XCircle, Play } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface InboundTableProps {
   orders: InboundOrderResponse[];
   onSelectOrder: (order: InboundOrderResponse) => void;
   onStatusChange: (orderId: string, status: OrderStatus) => void;
   onDeleteOrder: (orderId: string) => void;
+  onOpenProcessingFlow?: (order: InboundOrderResponse) => void;
 }
 
 export function InboundTable({
@@ -17,7 +19,12 @@ export function InboundTable({
   onSelectOrder,
   onStatusChange,
   onDeleteOrder,
+  onOpenProcessingFlow,
 }: InboundTableProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const isStaff = user?.role === "admin" || user?.role === "operator";
+
   if (!orders || orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 rounded-2xl border border-dashed border-[#cbd5e1] bg-white text-center">
@@ -76,7 +83,7 @@ export function InboundTable({
                   {/* Order Manifest */}
                   <TableCell className="py-4 pl-6">
                     <div className="font-mono text-[13px] font-bold text-[#2457e6]">
-                      {order.order_number}
+                      INB-{order.id.slice(0, 8)}
                     </div>
                     <div className="text-[11px] text-[#64748b] mt-0.5">
                       Created {new Date(order.created_at).toLocaleDateString()}
@@ -85,7 +92,7 @@ export function InboundTable({
 
                   {/* Client */}
                   <TableCell className="py-4 font-semibold text-[#0f172a] text-xs">
-                    {order.client_name || order.client_id}
+                    {order.client_name || `Client ${order.client_id.slice(0, 8)}`}
                   </TableCell>
 
                   {/* Vehicle Number */}
@@ -118,55 +125,102 @@ export function InboundTable({
                   {/* Total Quantity / Weight */}
                   <TableCell className="py-4 text-right">
                     <div className="text-[13px] font-bold text-[#0f172a]">
-                      {order.total_quantity.toLocaleString()} <span className="text-[10px] font-normal text-[#64748b]">units</span>
+                      {order.total_quantity.toLocaleString()} <span className="text-[10px] font-normal text-[#64748b]">kg</span>
                     </div>
                     <div className="text-[11px] text-[#64748b] font-medium">
-                      {weightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg net
+                      {weightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg total
                     </div>
                   </TableCell>
 
-                  {/* Status Badge & Selector */}
+                  {/* Status Badge */}
                   <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-2">
-                      <InboundOrderStatusBadge status={order.status} />
-                      <select
-                        aria-label="Change status"
-                        value={order.status}
-                        onChange={(e) => onStatusChange(order.id, e.target.value as OrderStatus)}
-                        className="bg-transparent text-[11px] font-medium text-[#64748b] hover:text-[#0f172a] focus:outline-none cursor-pointer border border-transparent hover:border-[#cbd5e1] rounded px-1"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="received">Received</option>
-                        <option value="inspecting">Inspecting</option>
-                        <option value="stored">Stored</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </div>
+                    <InboundOrderStatusBadge status={order.status} />
                   </TableCell>
 
-                  {/* Actions */}
+                  {/* Contextual Actions */}
                   <TableCell className="py-4 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1.5">
+                      {/* Admin Approve/Reject */}
+                      {isAdmin && order.status === "submitted" && (
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => onStatusChange(order.id, "approved")}
+                            className="h-8 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                            title="Approve & Reserve Slots"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onStatusChange(order.id, "rejected")}
+                            className="h-8 px-2 text-xs border-red-200 text-red-700 hover:bg-red-50"
+                            title="Reject Order"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+
+                      {/* Staff Mark Arrived */}
+                      {isStaff && (order.status === "approved" || order.status === "in_transit") && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => onStatusChange(order.id, "arrived")}
+                          className="h-8 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                        >
+                          <Truck className="h-3.5 w-3.5 mr-1" /> Arrived
+                        </Button>
+                      )}
+
+                      {/* Staff Process Intake (Palletisation & Storage) */}
+                      {isStaff && (order.status === "arrived" || order.status === "processing") && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            if (order.status === "arrived") {
+                              onStatusChange(order.id, "processing");
+                            }
+                            if (onOpenProcessingFlow) {
+                              onOpenProcessingFlow(order);
+                            }
+                          }}
+                          className="h-8 px-2.5 text-xs bg-[#2457e6] hover:bg-[#1d4ed8] text-white font-semibold"
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1" /> Process
+                        </Button>
+                      )}
+
+                      {/* Always view detail */}
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => onSelectOrder(order)}
-                        className="h-8 px-2.5 text-xs text-[#2457e6] hover:bg-[#2457e6]/10 font-semibold"
+                        className="h-8 px-2 text-xs text-[#2457e6] hover:bg-[#2457e6]/10 font-semibold"
                         title="View Full Details"
                       >
-                        <Eye className="h-3.5 w-3.5 mr-1" /> View
+                        <Eye className="h-3.5 w-3.5 mr-1" /> Details
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDeleteOrder(order.id)}
-                        className="h-8 w-8 p-0 text-[#94a3b8] hover:text-[#ef4444] hover:bg-[#fee2e2]"
-                        title="Delete Order"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+
+                      {/* Delete */}
+                      {(isAdmin || user?.role === "client") && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDeleteOrder(order.id)}
+                          className="h-8 w-8 p-0 text-[#94a3b8] hover:text-[#ef4444] hover:bg-[#fee2e2]"
+                          title="Delete Order"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -178,3 +232,4 @@ export function InboundTable({
     </div>
   );
 }
+

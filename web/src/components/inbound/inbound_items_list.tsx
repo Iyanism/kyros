@@ -1,22 +1,19 @@
-import type { OrderItem } from "@/types/order";
-import { Package, Hash, Calendar, Scale } from "lucide-react";
+import type { OrderItemResponse, OrderItemCreate } from "@/types/order";
+import { Package, Hash, Calendar, Snowflake, Thermometer } from "lucide-react";
+import { capitalise } from "@/utils/string-operations";
+
+type OrderItemType = OrderItemResponse | OrderItemCreate;
 
 interface InboundItemsListProps {
-  items: OrderItem[];
+  items: OrderItemType[];
   maxHeight?: string;
   totalQuantityOverride?: number;
   showSummaryBar?: boolean;
   emptyMessage?: string;
 }
 
-export function calculateTotalWeightInKg(items: OrderItem[]): number {
-  return items.reduce((acc, item) => {
-    let weightInKg = item.quantity;
-    if (item.unit === "g") weightInKg = item.quantity / 1000;
-    else if (item.unit === "lb") weightInKg = item.quantity * 0.453592;
-    else if (item.unit === "oz") weightInKg = item.quantity * 0.0283495;
-    return acc + weightInKg;
-  }, 0);
+export function calculateTotalWeightInKg(items: OrderItemType[]): number {
+  return items.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
 }
 
 export function InboundItemsList({
@@ -28,7 +25,6 @@ export function InboundItemsList({
 }: InboundItemsListProps) {
   const calculatedTotalQuantity = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   const displayTotalQuantity = totalQuantityOverride ?? calculatedTotalQuantity;
-  const totalWeightKg = calculateTotalWeightInKg(items);
 
   if (!items || items.length === 0) {
     return (
@@ -63,6 +59,12 @@ export function InboundItemsList({
                   {item.product_name || "Unnamed Product"}
                 </h4>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px] text-[#64748b]">
+                  {item.temperature_category && (
+                    <span className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-[#e2e8f0]">
+                      <Thermometer className="h-3 w-3 text-[#2457e6]" />
+                      Zone: <strong className="text-[#334155] font-medium capitalize">{capitalise(item.temperature_category)}</strong>
+                    </span>
+                  )}
                   {item.batch_number && (
                     <span className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-[#e2e8f0]">
                       <Hash className="h-3 w-3 text-[#94a3b8]" />
@@ -72,52 +74,41 @@ export function InboundItemsList({
                   {item.expiry_date && (
                     <span className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-[#e2e8f0]">
                       <Calendar className="h-3 w-3 text-[#94a3b8]" />
-                      Exp: <strong className="text-[#334155] font-medium">{item.expiry_date}</strong>
+                      Exp: <strong className="text-[#334155] font-medium">{new Date(item.expiry_date).toLocaleDateString()}</strong>
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Quantity and Unit pill */}
+            {/* Quantity pill */}
             <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
               <span className="text-[14px] font-bold text-[#0f172a]">
                 {Number(item.quantity).toLocaleString()}
               </span>
               <span className="rounded-md bg-[#2457e6]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#2457e6]">
-                {item.unit}
+                units (kg)
               </span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Prominent Bottom Total Quantity / Weight Summary Bar */}
+      {/* Summary Bar */}
       {showSummaryBar && (
         <div className="sticky bottom-0 z-10 border-t border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#475569]">
-            <Scale className="h-4 w-4 text-[#2457e6]" />
+            <Snowflake className="h-4 w-4 text-[#2457e6]" />
             <span>Total Items: <strong className="text-[#0f172a]">{items.length}</strong></span>
           </div>
 
           <div className="flex items-center gap-4 text-xs">
             <div className="text-right">
               <span className="text-[11px] text-[#64748b] block font-medium uppercase tracking-wider">
-                Total Quantity (InboundOrderRequest)
+                Total Quantity / Weight
               </span>
               <span className="text-[15px] font-extrabold text-[#2457e6]">
-                {displayTotalQuantity.toLocaleString()} <span className="text-[11px] font-semibold">units</span>
-              </span>
-            </div>
-
-            <div className="h-8 w-px bg-[#cbd5e1] hidden sm:block" />
-
-            <div className="text-right hidden sm:block">
-              <span className="text-[11px] text-[#64748b] block font-medium uppercase tracking-wider">
-                Net Weight (Normalized)
-              </span>
-              <span className="text-[13px] font-bold text-[#0f172a]">
-                {totalWeightKg.toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-[11px] font-semibold text-[#64748b]">kg</span>
+                {displayTotalQuantity.toLocaleString()} <span className="text-[11px] font-semibold">kg</span>
               </span>
             </div>
           </div>
