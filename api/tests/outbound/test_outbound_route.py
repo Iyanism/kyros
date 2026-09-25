@@ -26,14 +26,6 @@ class TestOutboundOrderRoute:
         assert response.status_code == 201
         return response.json()
 
-    async def _update_status(
-        self, authed_client: AsyncClient, order_id: str, status: str
-    ) -> dict[str, Any]:
-        response = await authed_client.patch(
-            f"/outbound-orders/{order_id}/status", json={"status": status}
-        )
-        return response.json()
-
     async def test_outbound_orders_require_auth(self, client: AsyncClient) -> None:
         response = await client.get("/outbound-orders")
         assert response.status_code == 401
@@ -46,7 +38,7 @@ class TestOutboundOrderRoute:
         order = await self._create_order(authed_client, created_client["id"])
         assert order["client_id"] == created_client["id"]
         assert order["total_quantity"] == 1500.0
-        assert order["status"] == "draft"
+        assert order["status"] == "submitted"
         assert len(order["items"]) == 2
         assert order["items"][0]["product_name"] == "Frozen Chicken"
         assert order["items"][0]["quantity"] == 1000.0
@@ -142,7 +134,7 @@ class TestOutboundOrderRoute:
         assert response.status_code == 200
         body: dict[str, Any] = response.json()
         assert body["total_quantity"] == 2000.0
-        assert body["status"] == "draft"
+        assert body["status"] == "submitted"
 
     async def test_update_outbound_order_not_found(
         self, authed_client: AsyncClient
@@ -161,12 +153,7 @@ class TestOutboundOrderRoute:
     ) -> None:
         order = await self._create_order(authed_client, created_client["id"])
         order_id: str = order["id"]
-
-        response = await authed_client.patch(
-            f"/outbound-orders/{order_id}/status", json={"status": "submitted"}
-        )
-        assert response.status_code == 200
-        assert response.json()["status"] == "submitted"
+        assert order["status"] == "submitted"
 
         response = await authed_client.patch(
             f"/outbound-orders/{order_id}/status", json={"status": "approved"}
@@ -219,7 +206,6 @@ class TestOutboundOrderRoute:
         order = await self._create_order(authed_client, created_client["id"])
         order_id: str = order["id"]
 
-        await self._update_status(authed_client, order_id, "submitted")
         response = await authed_client.patch(
             f"/outbound-orders/{order_id}/status", json={"status": "submitted"}
         )
@@ -285,7 +271,7 @@ class TestOutboundOrderRoute:
         data: list[dict[str, Any]] = response.json()
         assert len(data) == 2
 
-    async def test_status_draft_to_rejected(
+    async def test_status_submitted_to_rejected(
         self,
         authed_client: AsyncClient,
         created_client: Mapping[str, str],

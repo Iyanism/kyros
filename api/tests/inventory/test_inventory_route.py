@@ -456,11 +456,10 @@ class TestInventoryRoute:
     async def _approve_outbound(
         self, authed_client: AsyncClient, order_id: str
     ) -> None:
-        for s in ("submitted", "approved"):
-            resp = await authed_client.patch(
-                f"/outbound-orders/{order_id}/status", json={"status": s}
-            )
-            assert resp.status_code == 200, resp.text
+        resp = await authed_client.patch(
+            f"/outbound-orders/{order_id}/status", json={"status": "approved"}
+        )
+        assert resp.status_code == 200, resp.text
 
     async def test_generate_pick_list(
         self,

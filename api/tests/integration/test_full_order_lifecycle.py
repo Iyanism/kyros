@@ -353,12 +353,12 @@ class TestFullOrderLifecycle:
         )
         assert outbound_resp.status_code == 201, outbound_resp.text
         outbound_order = outbound_resp.json()
-        for s in ("submitted", "approved"):
-            resp = await authed_client.patch(
-                f"/outbound-orders/{outbound_order['id']}/status",
-                json={"status": s},
-            )
-            assert resp.status_code == 200, resp.text
+        assert outbound_order["status"] == "submitted"
+        resp = await authed_client.patch(
+            f"/outbound-orders/{outbound_order['id']}/status",
+            json={"status": "approved"},
+        )
+        assert resp.status_code == 200, resp.text
 
         pick_resp = await authed_client.post(
             "/inventory/pick-list",
@@ -500,7 +500,7 @@ class TestOutboundOrderLifecycle:
         assert resp.status_code == 200, resp.text
         return resp.json()
 
-    async def test_outbound_happy_path_draft_to_dispatched(
+    async def test_outbound_happy_path_submitted_to_dispatched(
         self,
         authed_client: AsyncClient,
     ) -> None:
@@ -511,12 +511,12 @@ class TestOutboundOrderLifecycle:
         await self._create_chamber(authed_client, "chilled")
         await self._seed_inventory(authed_client, client_id)
 
-        # --- Step 2: create outbound order (draft) -----------------
+        # --- Step 2: create outbound order (submitted) ------------
         outbound = await self._create_outbound(authed_client, client_id)
         outbound_id: str = outbound["id"]
         assert outbound["client_id"] == client_id
         assert outbound["total_quantity"] == 1000.0
-        assert outbound["status"] == "draft"
+        assert outbound["status"] == "submitted"
         assert len(outbound["items"]) == 1
         assert outbound["items"][0]["product_name"] == "Frozen Chicken"
         assert outbound["items"][0]["quantity"] == 1000.0
@@ -529,7 +529,7 @@ class TestOutboundOrderLifecycle:
         body: dict[str, Any] = fetched.json()
         assert body["id"] == outbound_id
         assert body["client_id"] == client_id
-        assert body["status"] == "draft"
+        assert body["status"] == "submitted"
         assert len(body["items"]) == 1
 
         # --- Step 4: list outbound orders --------------------------
@@ -553,11 +553,7 @@ class TestOutboundOrderLifecycle:
         assert update_resp.status_code == 200
         assert update_resp.json()["total_quantity"] == 800.0
 
-        # --- Step 7: submit (draft → submitted) --------------------
-        submitted = await self._set_outbound_status(
-            authed_client, outbound_id, "submitted"
-        )
-        assert submitted["status"] == "submitted"
+        # --- Step 7: order already submitted on create ------------
         recheck = await authed_client.get(f"/outbound-orders/{outbound_id}")
         assert recheck.json()["status"] == "submitted"
 
@@ -619,7 +615,7 @@ class TestOutboundOrderLifecycle:
         outbound = await self._create_outbound(authed_client, client["id"])
         outbound_id: str = outbound["id"]
 
-        # --- Reject from draft ------------------------------------
+        # --- Reject from submitted --------------------------------
         rejected = await self._set_outbound_status(
             authed_client, outbound_id, "rejected"
         )
@@ -649,8 +645,7 @@ class TestOutboundOrderLifecycle:
         outbound = await self._create_outbound(authed_client, client["id"])
         outbound_id: str = outbound["id"]
 
-        # --- Submit then reject -----------------------------------
-        await self._set_outbound_status(authed_client, outbound_id, "submitted")
+        # --- Order is already submitted on create -----------------
         rejected = await self._set_outbound_status(
             authed_client, outbound_id, "rejected"
         )
@@ -675,7 +670,7 @@ class TestOutboundOrderLifecycle:
         outbound = await self._create_outbound(authed_client, client["id"])
         outbound_id: str = outbound["id"]
 
-        # --- Cannot jump from draft directly to dispatched ---------
+        # --- Cannot jump from submitted directly to dispatched ----
         resp = await authed_client.patch(
             f"/outbound-orders/{outbound_id}/status",
             json={"status": "dispatched"},
