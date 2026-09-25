@@ -1,5 +1,6 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import { env } from "@/config/env";
+import { useAuthStore } from "@/store/authStore";
 
 export interface ApiError {
   code: string;
@@ -27,18 +28,66 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+type RetriableRequestConfig = InternalAxiosRequestConfig & { __retried?: boolean };
+
+// Single-flight refresh so parallel 401s only trigger one /auth/refresh call
+let refreshPromise: Promise<string | null> | null = null;
+
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = apiClient
+      .post<{ access_token: string }>("/auth/refresh")
+      .then((response) => response.data.access_token)
+      .catch(() => null)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+function endSession(): void {
+  useAuthStore.getState().clearSession();
+  if (window.location.pathname !== "/login") {
+    window.location.assign("/login");
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      try {
-        localStorage.removeItem("kyros-auth-storage");
-      } catch {
-        // ignore
-      }
+  async (error: unknown) => {
+    if (!axios.isAxiosError(error)) {
+      return Promise.reject(error);
     }
+
+    const config = error.config as RetriableRequestConfig | undefined;
+    // Public auth calls (bad credentials / failed registration) must not trigger
+    // a refresh attempt or a forced logout redirect.
+    const isPublicAuthCall =
+      config?.url === "/auth/login" ||
+      config?.url === "/auth/register" ||
+      config?.url === "/auth/refresh";
+
+    if (
+      error.response?.status === 401 &&
+      config &&
+      !config.__retried &&
+      !isPublicAuthCall
+    ) {
+      config.__retried = true;
+
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        useAuthStore.setState({ accessToken: newToken });
+        config.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(config);
+      }
+
+      endSession();
+    }
+
     return Promise.reject(error);
-  }
+  },
 );
 
 export function getApiErrorMessage(error: unknown): string {
