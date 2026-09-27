@@ -67,3 +67,27 @@ export interface SlotAllocationResponse {
   allocated_at: string;
 }
 
+export interface PickRecordResponse {
+  id: string;
+  pallet_id: string;
+  pallet_code: string;
+  product_name: string;
+  batch_code: string;
+  quantity: number;
+  weight: number;
+  slot_code: string;
+  picked: boolean;
+  picked_at: string | null;
+}
+
+export interface PickListResponse {
+  id: string;
+  outbound_order_id: string;
+  total_lines: number;
+  total_quantity: number;
+  total_weight_mt: number;
+  records: PickRecordResponse[];
+  created_at: string;
+}
+
+

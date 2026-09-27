@@ -3,6 +3,7 @@ import type {
   PalletItemResponse,
   PalletisationResult,
   PalletResponse,
+  PickListResponse,
   SlotAllocationResponse,
 } from "@/types/inventory";
 import { apiClient } from "./apiClient";
@@ -61,4 +62,30 @@ export async function list_order_allocations(
   );
   return data;
 }
+
+export async function generate_pick_list(
+  outbound_order_id: string
+): Promise<PickListResponse> {
+  const { data } = await apiClient.post<PickListResponse>("/inventory/pick-list", {
+    outbound_order_id,
+  });
+  return data;
+}
+
+export async function get_pick_list_by_outbound_order(
+  outbound_order_id: string
+): Promise<PickListResponse> {
+  const { data } = await apiClient.get<PickListResponse>(
+    `/inventory/pick-lists/outbound/${outbound_order_id}`
+  );
+  return data;
+}
+
+export async function get_pick_list(pick_list_id: string): Promise<PickListResponse> {
+  const { data } = await apiClient.get<PickListResponse>(
+    `/inventory/pick-lists/${pick_list_id}`
+  );
+  return data;
+}
+
 

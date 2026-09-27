@@ -4,23 +4,46 @@ import { DashboardHeader, Sidebar } from "@/components/shared/dashboard_layout";
 import { InventoryStats } from "@/components/inventory/inventory_stats";
 import { InventoryFilters } from "@/components/inventory/inventory_filters";
 import { InventoryTable } from "@/components/inventory/inventory_table";
-import { get_all_inventory } from "@/lib/api/inventory";
+import { ClientInventorySummaryPanel } from "@/components/inventory/client_inventory_summary";
+import { get_all_inventory, get_client_inventory } from "@/lib/api/inventory";
+import { get_clients } from "@/lib/api/client";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import type { PalletItemResponse } from "@/types/inventory";
+import type { ClientResponse } from "@/types/client";
 
 export function Inventory() {
   const [items, setItems] = useState<PalletItemResponse[]>([]);
+  const [clients, setClients] = useState<ClientResponse[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedZone, setSelectedZone] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedClient, setSelectedClient] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Client list is admin-only; operators/clients simply get no filter
+  useEffect(() => {
+    let cancelled = false;
+    get_clients()
+      .then((data) => {
+        if (!cancelled) setClients(data);
+      })
+      .catch(() => {
+        if (!cancelled) setClients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadData = async () => {
       try {
-        const inventoryData = await get_all_inventory();
+        const inventoryData =
+          selectedClient === "all"
+            ? await get_all_inventory()
+            : await get_client_inventory(selectedClient);
         if (cancelled) return;
         setItems(inventoryData);
       } catch (error) {
@@ -36,7 +59,7 @@ export function Inventory() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [selectedClient]);
 
   const filteredItems = items.filter((item) => {
     const term = searchTerm.toLowerCase().trim();
@@ -62,6 +85,7 @@ export function Inventory() {
     setSearchTerm("");
     setSelectedZone("all");
     setSelectedStatus("all");
+    setSelectedClient("all");
   };
 
   if (isLoading) {
@@ -99,8 +123,13 @@ export function Inventory() {
             onZoneChange={setSelectedZone}
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
+            clientsList={clients.map((c) => ({ id: c.id, name: c.name }))}
+            selectedClient={selectedClient}
+            onClientChange={setSelectedClient}
             onReset={handleResetFilters}
           />
+
+          <ClientInventorySummaryPanel items={filteredItems} />
 
           <InventoryTable items={filteredItems} />
         </div>
