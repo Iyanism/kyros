@@ -165,13 +165,26 @@ export function InboundTable({
                         </>
                       )}
 
-                      {/* Staff Mark Arrived */}
-                      {isStaff && (order.status === "approved" || order.status === "in_transit") && (
+                      {/* Staff advance approved -> in_transit, then in_transit -> arrived */}
+                      {isStaff && order.status === "approved" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => onStatusChange(order.id, "in_transit")}
+                          className="h-8 px-2.5 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                          title="Mark Order In-Transit"
+                        >
+                          <Truck className="h-3.5 w-3.5 mr-1" /> In-Transit
+                        </Button>
+                      )}
+
+                      {isStaff && order.status === "in_transit" && (
                         <Button
                           type="button"
                           size="sm"
                           onClick={() => onStatusChange(order.id, "arrived")}
                           className="h-8 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                          title="Mark Vehicle Arrived"
                         >
                           <Truck className="h-3.5 w-3.5 mr-1" /> Arrived
                         </Button>
@@ -208,8 +221,8 @@ export function InboundTable({
                         <Eye className="h-3.5 w-3.5 mr-1" /> Details
                       </Button>
 
-                      {/* Delete */}
-                      {(isAdmin || user?.role === "client") && (
+                      {/* Delete (admin / operator only — matches backend DELETE role) */}
+                      {isStaff && (
                         <Button
                           type="button"
                           variant="ghost"

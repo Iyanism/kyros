@@ -14,6 +14,7 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import {
+  Building2,
   Calendar,
   Hash,
   Layers,
@@ -38,9 +39,11 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import type { ChamberCategory } from "@/types/chamber";
+import type { ClientResponse } from "@/types/client";
 
 interface CreateInboundOrderDialogProps {
   onAddOrder: (order: InboundOrderResponse) => void;
+  clients?: ClientResponse[];
 }
 
 const DEFAULT_ITEM: OrderItemCreate = {
@@ -60,10 +63,12 @@ const INITIAL_FORM: InboundOrderRequest = {
 
 export function CreateInboundOrderDialog({
   onAddOrder,
+  clients = [],
 }: CreateInboundOrderDialogProps) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<InboundOrderRequest>(INITIAL_FORM);
   const { user } = useAuth();
+  const isStaff = user?.role === "admin" || user?.role === "operator";
 
   const totalQuantity = useMemo(() => {
     return form.items.reduce(
@@ -93,7 +98,7 @@ export function CreateInboundOrderDialog({
 
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-    const clientId = user?.client_id || form.client_id;
+    const clientId = isStaff ? form.client_id : user?.client_id || "";
     if (!clientId) {
       toast.error("Please select or log in with an associated client.");
       return;
@@ -158,6 +163,38 @@ export function CreateInboundOrderDialog({
             <div className="space-y-6 pr-3">
               {/* Order Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border border-slate-200/80">
+                {/* Client Organization (staff only) */}
+                {isStaff && (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label
+                      htmlFor="inbound-client-select"
+                      className="text-[12px] font-semibold text-[#0f172a] flex items-center gap-1.5"
+                    >
+                      Client Organization{" "}
+                      <span className="text-[#ef4444]">*</span>
+                    </Label>
+                    <div className="relative">
+                      <select
+                        id="inbound-client-select"
+                        value={form.client_id}
+                        onChange={(e) =>
+                          setForm({ ...form, client_id: e.target.value })
+                        }
+                        className="w-full pl-9 pr-3 py-2 text-xs border border-[#e2e8f0] rounded-xl bg-white text-[#0f172a] focus:outline-none focus:border-[#2457e6]"
+                        required
+                      >
+                        <option value="">Select a Client</option>
+                        {clients.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8] pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Vehicle Number */}
                 <div className="space-y-1.5">
                   <Label

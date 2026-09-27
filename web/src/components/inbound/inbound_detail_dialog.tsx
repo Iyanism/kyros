@@ -1,9 +1,15 @@
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { InboundOrderResponse, OrderStatus } from "@/types/order";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { InboundOrderStatusBadge } from "./inbound_status_badge";
 import { InboundItemsList } from "./inbound_items_list";
-import { Building2, Truck, Calendar, Clock, PackageCheck, CheckCircle2, XCircle, Play, ArrowRight } from "lucide-react";
+import { get_client } from "@/lib/api/client";
+import { update_inbound_order } from "@/lib/api/order";
+import { getApiErrorMessage } from "@/lib/api/apiClient";
+import { Building2, Truck, Calendar, Clock, PackageCheck, CheckCircle2, XCircle, Play, ArrowRight, Pencil, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface InboundDetailDialogProps {
@@ -12,6 +18,8 @@ interface InboundDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onStatusChange?: (orderId: string, newStatus: OrderStatus) => void;
   onOpenProcessingFlow?: (order: InboundOrderResponse) => void;
+  /** Called after an in-dialog edit (e.g. vehicle number) so the list stays in sync */
+  onUpdated?: (order: InboundOrderResponse) => void;
 }
 
 export function InboundDetailDialog({
@@ -20,12 +28,60 @@ export function InboundDetailDialog({
   onOpenChange,
   onStatusChange,
   onOpenProcessingFlow,
+  onUpdated,
 }: InboundDetailDialogProps) {
   const { user } = useAuth();
-  if (!order) return null;
-
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "admin" || user?.role === "operator";
+
+  const [resolvedClientName, setResolvedClientName] = useState<string | null>(null);
+  const [isEditingVehicle, setIsEditingVehicle] = useState(false);
+  const [vehicleDraft, setVehicleDraft] = useState("");
+  const [isSavingVehicle, setIsSavingVehicle] = useState(false);
+
+  // Admins can resolve the client name; operators/clients only have the UUID
+  useEffect(() => {
+    setResolvedClientName(null);
+    if (!order || !isAdmin) return;
+    let cancelled = false;
+    get_client(order.client_id)
+      .then((client) => {
+        if (!cancelled) setResolvedClientName(client.name);
+      })
+      .catch(() => {
+        // Non-admin roles / lookup failure → fall back to the UUID label
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.id, isAdmin]);
+
+  useEffect(() => {
+    setIsEditingVehicle(false);
+    setVehicleDraft(order?.vehicle_number ?? "");
+  }, [order?.id, open]);
+
+  const handleSaveVehicle = async () => {
+    if (!order) return;
+    const next = vehicleDraft.trim();
+    if (!next || next === order.vehicle_number) {
+      setIsEditingVehicle(false);
+      return;
+    }
+    setIsSavingVehicle(true);
+    try {
+      const updated = await update_inbound_order(order.id, { vehicle_number: next });
+      toast.success("Vehicle number updated");
+      onUpdated?.(updated);
+      setIsEditingVehicle(false);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setIsSavingVehicle(false);
+    }
+  };
+
+  if (!order) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,7 +117,7 @@ export function InboundDetailDialog({
                   Client Organization
                 </span>
                 <p className="text-[13px] font-bold text-[#0f172a] truncate mt-0.5">
-                  {order.client_name || `Client ${order.client_id.slice(0, 8)}`}
+                  {resolvedClientName || order.client_name || `Client ${order.client_id.slice(0, 8)}`}
                 </p>
                 <p className="text-[11px] text-[#64748b]">Client ID: {order.client_id}</p>
               </div>
@@ -72,14 +128,68 @@ export function InboundDetailDialog({
               <div className="h-9 w-9 rounded-lg bg-[#2457e6]/10 text-[#2457e6] flex items-center justify-center shrink-0">
                 <Truck className="h-4.5 w-4.5" />
               </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
-                  Transport Vehicle
-                </span>
-                <p className="text-[13px] font-bold text-[#0f172a] truncate mt-0.5">
-                  {order.vehicle_number}
-                </p>
-                <p className="text-[11px] text-[#64748b]">Inbound Carrier</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                    Transport Vehicle
+                  </span>
+                  {isStaff && !isEditingVehicle && order.status !== "stored" && (
+                    <button
+                      type="button"
+                      title="Edit vehicle number"
+                      onClick={() => {
+                        setVehicleDraft(order.vehicle_number);
+                        setIsEditingVehicle(true);
+                      }}
+                      className="flex items-center gap-1 rounded-lg border border-[#e2e8f0] bg-white px-2 py-1 text-[11px] font-semibold text-[#2457e6] hover:bg-[#2457e6]/10 transition"
+                    >
+                      <Pencil className="h-3 w-3" /> Edit
+                    </button>
+                  )}
+                </div>
+
+                {isEditingVehicle ? (
+                  <div className="mt-1 space-y-2">
+                    <Input
+                      value={vehicleDraft}
+                      onChange={(e) => setVehicleDraft(e.target.value)}
+                      placeholder="e.g. KA-01-AB-1234"
+                      className="h-8 text-[13px]"
+                      autoFocus
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isSavingVehicle}
+                        onClick={() => void handleSaveVehicle()}
+                        className="h-7 bg-[#2457e6] hover:bg-[#1d4ed8] text-white text-[11px] px-2.5"
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1" /> {isSavingVehicle ? "Saving..." : "Save"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isSavingVehicle}
+                        onClick={() => {
+                          setVehicleDraft(order.vehicle_number);
+                          setIsEditingVehicle(false);
+                        }}
+                        className="h-7 text-[11px] px-2.5 text-[#64748b]"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-[13px] font-bold text-[#0f172a] truncate mt-0.5">
+                      {order.vehicle_number}
+                    </p>
+                    <p className="text-[11px] text-[#64748b]">Inbound Carrier</p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -155,7 +265,7 @@ export function InboundDetailDialog({
               </div>
             )}
 
-            {/* Staff / Operator In-Transit & Arrival Transitions */}
+            {/* Staff mark approved order as in-transit (backend: approved -> in_transit) */}
             {isStaff && order.status === "approved" && onStatusChange && (
               <div className="flex flex-wrap items-center gap-3">
                 <Button
@@ -164,14 +274,6 @@ export function InboundDetailDialog({
                   onClick={() => onStatusChange(order.id, "in_transit")}
                 >
                   <Truck className="h-4 w-4" /> Mark Order In-Transit
-                </Button>
-
-                <Button
-                  type="button"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs flex items-center gap-1.5 px-4"
-                  onClick={() => onStatusChange(order.id, "arrived")}
-                >
-                  <CheckCircle2 className="h-4 w-4" /> Mark Vehicle Arrived
                 </Button>
               </div>
             )}

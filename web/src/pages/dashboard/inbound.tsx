@@ -9,6 +9,7 @@ import { InboundDetailDialog } from "@/components/inbound/inbound_detail_dialog"
 import { InboundProcessingDialog } from "@/components/inbound/inbound_processing_dialog";
 import {
   get_inbound_orders,
+  get_inbound_order,
   update_inbound_order_status,
   delete_inbound_order,
 } from "@/lib/api/order";
@@ -103,9 +104,17 @@ export function Inbound() {
     }
   };
 
-  const handleOpenDetail = (order: InboundOrderResponse) => {
+  const handleOpenDetail = async (order: InboundOrderResponse) => {
+    // Show the row immediately, then refresh with the latest server state
     setActiveDetailOrder(order);
     setDetailModalOpen(true);
+    try {
+      const fresh = await get_inbound_order(order.id);
+      setOrders((prev) => prev.map((o) => (o.id === fresh.id ? fresh : o)));
+      setActiveDetailOrder(fresh);
+    } catch {
+      // Keep the row data if the refresh fails (offline / permission edge cases)
+    }
   };
 
   const handleOpenProcessingFlow = (order: InboundOrderResponse) => {
@@ -114,6 +123,15 @@ export function Inbound() {
   };
 
   const handleProcessingComplete = (updatedOrder: InboundOrderResponse) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)),
+    );
+    if (activeDetailOrder?.id === updatedOrder.id) {
+      setActiveDetailOrder(updatedOrder);
+    }
+  };
+
+  const handleOrderUpdated = (updatedOrder: InboundOrderResponse) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)),
     );
@@ -172,7 +190,9 @@ export function Inbound() {
         <DashboardHeader
           title="Inbound Orders"
           subtitle="Manage cold storage shipment intake, vehicle logging, and batch manifests"
-          actions={<CreateInboundOrderDialog onAddOrder={handleAddOrder} />}
+          actions={
+            <CreateInboundOrderDialog onAddOrder={handleAddOrder} clients={clients} />
+          }
         />
 
         <div className="p-6 lg:p-8 space-y-6">
@@ -205,6 +225,7 @@ export function Inbound() {
         onOpenChange={setDetailModalOpen}
         onStatusChange={handleStatusChange}
         onOpenProcessingFlow={handleOpenProcessingFlow}
+        onUpdated={handleOrderUpdated}
       />
 
       <InboundProcessingDialog

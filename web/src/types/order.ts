@@ -34,6 +34,11 @@ export interface InboundOrderRequest {
   items: OrderItemCreate[];
 }
 
+export interface InboundOrderUpdate {
+  vehicle_number?: string;
+  total_quantity?: number;
+}
+
 export interface InboundOrderResponse {
   id: string;
   client_id: string;
