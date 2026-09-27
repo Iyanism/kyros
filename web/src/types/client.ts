@@ -23,3 +23,14 @@ export interface ClientResponse {
   created_at: string;
   updated_at: string;
 }
+
+export interface ClientUpdate {
+  name?: string;
+  email?: string;
+  phone_number?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pin_code?: number;
+  gstin?: string | null;
+}

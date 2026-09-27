@@ -5,6 +5,7 @@ import { ClientStats } from "@/components/client/client_stats";
 import { ClientFilters } from "@/components/client/client_filters";
 import { ClientsTable } from "@/components/client/clients_table";
 import { CreateClientDialog } from "@/components/client/create_client_dialog";
+import { EditClientDialog } from "@/components/client/edit_client_dialog";
 import { delete_client, get_clients, toggle_client_status } from "@/lib/api/client";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import type { ClientResponse } from "@/types/client";
@@ -14,6 +15,10 @@ export function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Edit dialog state
+  const [editingClient, setEditingClient] = useState<ClientResponse | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,8 +75,20 @@ export function Clients() {
     }
   };
 
+  const handleEditClient = (client: ClientResponse) => {
+    setEditingClient(client);
+    setEditOpen(true);
+  };
+
+  const handleClientUpdated = (updated: ClientResponse) => {
+    setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  };
+
   const handleDelete = async (clientId: string) => {
-    const confirmed = window.confirm("Delete this client? This action cannot be undone.");
+    const client = clients.find((c) => c.id === clientId);
+    const confirmed = window.confirm(
+      `Delete client "${client?.name ?? "this client"}"? This action cannot be undone.`
+    );
     if (!confirmed) return;
     try {
       await delete_client(clientId);
@@ -113,9 +130,21 @@ export function Clients() {
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
           />
-          <ClientsTable clients={filteredClients} onToggleStatus={handleToggleStatus} onDelete={handleDelete} />
+          <ClientsTable
+            clients={filteredClients}
+            onToggleStatus={handleToggleStatus}
+            onEdit={handleEditClient}
+            onDelete={handleDelete}
+          />
         </div>
       </main>
+
+      <EditClientDialog
+        client={editingClient}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onClientUpdated={handleClientUpdated}
+      />
     </div>
   );
 }

@@ -27,3 +27,13 @@ export interface UserResponse {
 export interface UserClientResponse extends UserResponse {
   client: ClientResponse | null;
 }
+
+export interface UserUpdate {
+  email?: string;
+  password?: string;
+  full_name?: string;
+  phone_number?: string | null;
+  role?: UserRole;
+  client_id?: string | null;
+  is_active?: boolean;
+}

@@ -1,15 +1,16 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClientStatusBadge } from "./client_status_badge";
 import type { ClientResponse } from "@/types/client";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface ClientsTableProps {
   clients: ClientResponse[];
   onToggleStatus: (clientId: string) => void;
+  onEdit: (client: ClientResponse) => void;
   onDelete: (clientId: string) => void;
 }
 
-export function ClientsTable({ clients, onToggleStatus, onDelete }: ClientsTableProps) {
+export function ClientsTable({ clients, onToggleStatus, onEdit, onDelete }: ClientsTableProps) {
   if (clients.length === 0) {
     return (
       <div className="rounded-[16px] border border-[#e2e8f0] bg-white shadow-xs overflow-hidden">
@@ -47,7 +48,7 @@ export function ClientsTable({ clients, onToggleStatus, onDelete }: ClientsTable
             <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#64748b] px-3 whitespace-nowrap w-31.5 min-w-31.5">
               Status
             </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#64748b] px-3 pr-6 whitespace-nowrap text-right w-42.5 min-w-42.5">
+            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#64748b] px-3 pr-6 whitespace-nowrap text-right w-52 min-w-52">
               Actions
             </TableHead>
           </TableRow>
@@ -97,7 +98,7 @@ export function ClientsTable({ clients, onToggleStatus, onDelete }: ClientsTable
                 </div>
               </TableCell>
 
-              <TableCell className="px-3 pr-6 text-right w-42.5 min-w-42.5">
+              <TableCell className="px-3 pr-6 text-right w-52 min-w-52">
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
@@ -109,6 +110,14 @@ export function ClientsTable({ clients, onToggleStatus, onDelete }: ClientsTable
                     }`}
                   >
                     {client.is_active ? "Deactivate" : "Activate"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(client)}
+                    aria-label={`Edit ${client.name}`}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#e2e8f0] text-[#64748b] hover:text-[#2457e6] hover:border-[#bfdbfe] hover:bg-[#eff6ff] transition"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"

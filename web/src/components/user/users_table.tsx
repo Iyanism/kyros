@@ -10,14 +10,17 @@ import { UserStatusBadge } from "./user_status_badge";
 import { UserRoleBadge } from "@/components/user/user_role_badge";
 import type { UserClientResponse } from "@/types/user";
 import { getInitials } from "@/utils/string-operations";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface UsersTableProps {
   users: UserClientResponse[];
   onToggleStatus: (userId: string) => void;
+  onEdit: (user: UserClientResponse) => void;
+  onDelete: (userId: string) => void;
   isUpdated: boolean;
 }
 
-export function UsersTable({ users, onToggleStatus, isUpdated }: UsersTableProps) {
+export function UsersTable({ users, onToggleStatus, onEdit, onDelete, isUpdated }: UsersTableProps) {
   if (users.length === 0) {
     return (
       <div className="rounded-[16px] border border-[#e2e8f0] bg-white shadow-xs overflow-hidden">
@@ -51,7 +54,7 @@ export function UsersTable({ users, onToggleStatus, isUpdated }: UsersTableProps
             <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#64748b] px-3 whitespace-nowrap">
               Last Login
             </TableHead>
-            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#64748b] px-3 pr-6 whitespace-nowrap text-right w-28 min-w-28">
+            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#64748b] px-3 pr-6 whitespace-nowrap text-right w-44 min-w-44">
               Actions
             </TableHead>
           </TableRow>
@@ -107,18 +110,36 @@ export function UsersTable({ users, onToggleStatus, isUpdated }: UsersTableProps
                 {user.last_login || "Never"}
               </TableCell>
 
-              <TableCell className="px-3 pr-6 text-right w-28 min-w-28">
-                <button
-                  type="button"
-                  onClick={() => onToggleStatus(user.id)}
-                  className={`inline-flex items-center justify-center whitespace-nowrap text-[11px] font-semibold px-2.5 py-1 rounded-md transition border ${
-                    user.is_active
-                      ? "text-[#b91c1c] border-[#fecaca] hover:bg-[#fef2f2]"
-                      : "text-[#15803d] border-[#bbf7d0] hover:bg-[#f0fdf4]"
-                  }`}
-                >
-                  {isUpdated ? "Updating..." : user.is_active ? "Deactivate" : "Activate"}
-                </button>
+              <TableCell className="px-3 pr-6 text-right w-44 min-w-44">
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onToggleStatus(user.id)}
+                    className={`inline-flex items-center justify-center whitespace-nowrap text-[11px] font-semibold px-2.5 py-1 rounded-md transition border ${
+                      user.is_active
+                        ? "text-[#b91c1c] border-[#fecaca] hover:bg-[#fef2f2]"
+                        : "text-[#15803d] border-[#bbf7d0] hover:bg-[#f0fdf4]"
+                    }`}
+                  >
+                    {isUpdated ? "Updating..." : user.is_active ? "Deactivate" : "Activate"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(user)}
+                    aria-label={`Edit ${user.full_name}`}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#e2e8f0] text-[#64748b] hover:text-[#2457e6] hover:border-[#bfdbfe] hover:bg-[#eff6ff] transition"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(user.id)}
+                    aria-label={`Delete ${user.full_name}`}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[#e2e8f0] text-[#64748b] hover:text-[#b91c1c] hover:border-[#fecaca] hover:bg-[#fef2f2] transition"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
