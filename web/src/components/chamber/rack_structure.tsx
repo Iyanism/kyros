@@ -1,17 +1,19 @@
-import { Layers } from "lucide-react";
-import type { ChamberDetail, SlotResponse } from "@/types/chamber";
+import { Layers, Trash2 } from "lucide-react";
+import type { ChamberDetail, RackSummary, SlotResponse } from "@/types/chamber";
 import { capitalise } from "@/utils/string-operations";
 
 interface RackStructureProps {
   selectedChamber: ChamberDetail | null;
   activeSlot: SlotResponse | null;
   onSelectSlot: (slot: SlotResponse) => void;
+  onDeleteRack: (rack: RackSummary) => void;
 }
 
 export function RackStructure({
   selectedChamber,
   activeSlot,
   onSelectSlot,
+  onDeleteRack,
 }: RackStructureProps) {
   // Early return for no chamber or no racks
   if (!selectedChamber) {
@@ -51,9 +53,19 @@ export function RackStructure({
                 {capitalise(rack.status)}
               </span>
             </div>
-            <span className="text-[11px] font-semibold text-[#64748b]">
-              {rack.slot_count} Positions ({rack.occupied_count} occupied)
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-[11px] font-semibold text-[#64748b]">
+                {rack.slot_count} Positions ({rack.occupied_count} occupied)
+              </span>
+              <button
+                type="button"
+                onClick={() => onDeleteRack(rack)}
+                title={`Delete rack ${rack.rack_number}`}
+                className="flex items-center gap-1 rounded-lg border border-[#e2e8f0] bg-white px-2 py-1 text-[11px] font-semibold text-[#94a3b8] hover:border-red-200 hover:bg-red-50 hover:text-[#dc2626] transition"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            </div>
           </div>
 
           {/* Slot Matrix Grid */}

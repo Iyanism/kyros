@@ -2,6 +2,7 @@ import type {
   ChamberDetail,
   ChamberRequest,
   ChamberSummary,
+  RackSummary,
 } from "@/types/chamber";
 import { apiClient } from "./apiClient";
 
@@ -24,4 +25,40 @@ export async function get_chamber_detail(chamber_id: string): Promise<ChamberDet
 export async function create_chamber(payload: ChamberRequest): Promise<ChamberDetail> {
   const { data } = await apiClient.post<ChamberDetail>("/warehouses/chamber", payload);
   return data;
+}
+
+/** Appends a rack (with its slots) to an existing chamber.
+ *  The backend accepts bays/levels/rack number as query parameters. */
+export async function add_rack(
+  chamber_id: string,
+  payload: {
+    bays_per_rack: number;
+    levels_per_rack: number;
+    rack_number?: string | undefined;
+  }
+): Promise<RackSummary> {
+  const { data } = await apiClient.post<RackSummary>(
+    `/warehouses/chambers/${chamber_id}/racks`,
+    null,
+    {
+      params: {
+        bays_per_rack: payload.bays_per_rack,
+        levels_per_rack: payload.levels_per_rack,
+        ...(payload.rack_number ? { rack_number: payload.rack_number } : {}),
+      },
+    }
+  );
+  return data;
+}
+
+export async function delete_rack(rack_id: string): Promise<void> {
+  await apiClient.delete(`/warehouses/racks/${rack_id}`);
+}
+
+export async function delete_slot(slot_id: string): Promise<void> {
+  await apiClient.delete(`/warehouses/slots/${slot_id}`);
+}
+
+export async function delete_chamber(chamber_id: string): Promise<void> {
+  await apiClient.delete(`/warehouses/chambers/${chamber_id}`);
 }

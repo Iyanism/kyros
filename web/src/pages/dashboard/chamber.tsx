@@ -1,12 +1,25 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { ChamberTabs } from "@/components/chamber/chamber_tabs";
 import { CreateChamberDialog } from "@/components/chamber/create_chamber_dialog";
 import { RackStructure } from "@/components/chamber/rack_structure";
 import { SlotInspector } from "@/components/chamber/slot_inspector";
 import { DashboardHeader, Sidebar } from "@/components/shared/dashboard_layout";
-import { get_chamber_detail, get_chambers } from "@/lib/api/chamber";
-import type { ChamberDetail, ChamberSummary, SlotResponse } from "@/types/chamber";
+import {
+  delete_chamber,
+  delete_rack,
+  delete_slot,
+  get_chamber_detail,
+  get_chambers,
+} from "@/lib/api/chamber";
+import { getApiErrorMessage } from "@/lib/api/apiClient";
+import type {
+  ChamberDetail,
+  ChamberSummary,
+  RackSummary,
+  SlotResponse,
+} from "@/types/chamber";
 
 export function Chamber() {
   const [chambers, setChambers] = useState<ChamberSummary[]>([]);
@@ -21,6 +34,73 @@ export function Chamber() {
       setSelectedChamber(detail);
     } catch (error) {
       console.error("Error fetching chamber detail:", error);
+      toast.error(getApiErrorMessage(error));
+    }
+  };
+
+  /** Re-read chamber list + selected detail after any structural change */
+  const refreshChambers = async (focusChamberId?: string) => {
+    try {
+      const list = await get_chambers();
+      setChambers(list);
+
+      const targetId =
+        focusChamberId ?? (selectedChamber ? selectedChamber.id : undefined);
+      const next =
+        (targetId ? list.find((c) => c.id === targetId) : undefined) ?? list[0];
+      setSelectedChamber(next ? await get_chamber_detail(next.id) : null);
+    } catch (error) {
+      console.error("Error refreshing chambers:", error);
+      toast.error(getApiErrorMessage(error));
+    }
+  };
+
+  const handleRackAdded = () => {
+    void refreshChambers(selectedChamber?.id);
+  };
+
+  const handleDeleteRack = async (rack: RackSummary) => {
+    const confirmed = window.confirm(
+      `Delete rack ${rack.rack_number}? This also removes its ${rack.slot_count} slots.`
+    );
+    if (!confirmed) return;
+    try {
+      await delete_rack(rack.id);
+      setActiveSlot(null);
+      toast.success(`Rack ${rack.rack_number} deleted`);
+      await refreshChambers(selectedChamber?.id);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
+  };
+
+  const handleDeleteSlot = async (slot: SlotResponse) => {
+    const confirmed = window.confirm(
+      `Delete slot ${slot.location_code}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      await delete_slot(slot.id);
+      setActiveSlot(null);
+      toast.success(`Slot ${slot.location_code} deleted`);
+      await refreshChambers(selectedChamber?.id);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
+  };
+
+  const handleDeleteChamber = async (chamber: ChamberSummary) => {
+    const confirmed = window.confirm(
+      `Delete chamber ${chamber.code} · ${chamber.name}? All of its racks and slots are removed too.`
+    );
+    if (!confirmed) return;
+    try {
+      await delete_chamber(chamber.id);
+      setActiveSlot(null);
+      toast.success(`Chamber ${chamber.code} deleted`);
+      await refreshChambers();
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     }
   };
 
@@ -40,6 +120,7 @@ export function Chamber() {
       updated_at: newChamber.updated_at,
     };
     setChambers((prev) => [...prev, summaryItem]);
+    setSelectedChamber(newChamber);
   };
 
   useEffect(() => {
@@ -93,6 +174,8 @@ export function Chamber() {
             chambers={chambers}
             selectedChamber={selectedChamber}
             onSelectChamber={(c) => void handleSelectChamber(c)}
+            onRackAdded={handleRackAdded}
+            onDeleteChamber={(c) => void handleDeleteChamber(c)}
           />
 
           {/* Canvas & Inspector Grid Layout */}
@@ -102,11 +185,15 @@ export function Chamber() {
                 selectedChamber={selectedChamber}
                 activeSlot={activeSlot}
                 onSelectSlot={setActiveSlot}
+                onDeleteRack={(r) => void handleDeleteRack(r)}
               />
             </div>
 
             <div className="lg:col-span-4 sticky top-24">
-              <SlotInspector activeSlot={activeSlot} />
+              <SlotInspector
+                activeSlot={activeSlot}
+                onDeleteSlot={(s) => void handleDeleteSlot(s)}
+              />
             </div>
           </div>
         </div>

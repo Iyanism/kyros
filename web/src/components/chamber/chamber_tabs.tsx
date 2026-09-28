@@ -1,11 +1,14 @@
-import { Snowflake, Thermometer, Warehouse } from "lucide-react";
+import { Snowflake, Thermometer, Trash2, Warehouse } from "lucide-react";
 import type { ChamberStatus, ChamberSummary } from "@/types/chamber";
 import { capitalise } from "@/utils/string-operations";
+import { AddRackDialog } from "./add_rack_dialog";
 
 interface ChamberTabsProps {
   chambers: ChamberSummary[];
   selectedChamber: ChamberSummary | null;
   onSelectChamber: (chamber: ChamberSummary) => void;
+  onRackAdded: () => void;
+  onDeleteChamber: (chamber: ChamberSummary) => void;
 }
 
 const statusColors: Record<ChamberStatus, { bg: string; text: string; border: string }> = {
@@ -18,6 +21,8 @@ export function ChamberTabs({
   chambers,
   selectedChamber,
   onSelectChamber,
+  onRackAdded,
+  onDeleteChamber,
 }: ChamberTabsProps) {
   if (!selectedChamber) {
     return (
@@ -98,6 +103,18 @@ export function ChamberTabs({
               <span>Type: {capitalise(selectedChamber?.category)} Zone</span>
             </div>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <AddRackDialog chamberId={selectedChamber?.id ?? null} onRackAdded={onRackAdded} />
+          <button
+            type="button"
+            onClick={() => onDeleteChamber(selectedChamber)}
+            title="Delete this chamber"
+            className="flex items-center gap-1.5 rounded-[10px] border border-red-200 bg-white px-3 py-2 text-[12px] font-semibold text-[#dc2626] hover:bg-red-50 transition"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete Chamber
+          </button>
         </div>
 
         <div className="flex items-center gap-6">

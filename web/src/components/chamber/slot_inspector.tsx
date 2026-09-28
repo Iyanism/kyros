@@ -1,8 +1,9 @@
-import { Calendar, Info, Tag, Package, User, Weight, MapPin } from "lucide-react";
+import { Calendar, Info, Tag, Package, User, Weight, MapPin, Trash2 } from "lucide-react";
 import type { SlotResponse } from "@/types/chamber";
 
 interface SlotInspectorProps {
   activeSlot: SlotResponse | null;
+  onDeleteSlot?: (slot: SlotResponse) => void;
 }
 
 // Helper to format dates
@@ -35,7 +36,7 @@ const getStatusColor = (status: SlotResponse['status']) => {
   }
 };
 
-export function SlotInspector({ activeSlot }: SlotInspectorProps) {
+export function SlotInspector({ activeSlot, onDeleteSlot }: SlotInspectorProps) {
   // If no slot selected, show empty state
   if (!activeSlot) {
     return (
@@ -166,6 +167,17 @@ export function SlotInspector({ activeSlot }: SlotInspectorProps) {
               />
             </div>
           </div>
+
+          {activeSlot.status === "available" && onDeleteSlot && (
+            <button
+              type="button"
+              onClick={() => onDeleteSlot(activeSlot)}
+              title="Delete this slot"
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-red-200 bg-white px-3 py-2 text-[12px] font-semibold text-[#dc2626] hover:bg-red-50 transition"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Slot
+            </button>
+          )}
         </div>
       </div>
 
