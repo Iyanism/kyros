@@ -3,9 +3,9 @@ import {
   Boxes,
   Building2,
   CreditCard,
+  History,
   LayoutDashboard,
   Package,
-  Settings,
   Truck,
   Users,
   Warehouse,
@@ -16,7 +16,6 @@ import type { UserRole } from "@/types/user";
 export interface SidebarNavItem {
   icon: LucideIcon;
   label: string;
-  badge?: string;
   href: string;
 }
 
@@ -30,25 +29,26 @@ export const ADMIN_NAV: RoleSidebarNav = {
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
     { icon: Warehouse, label: "Chambers", href: "/chamber" },
     { icon: Boxes, label: "Inventory Lookup", href: "/inventory" },
-    { icon: Package, label: "Inbound Orders", badge: "3", href: "/inbound" },
-    { icon: Truck, label: "Outbound Orders", badge: "2", href: "/outbound" },
-    { icon: CreditCard, label: "Billing & Invoices", badge: "1", href: "/billing" },
+    { icon: History, label: "Stock Movements", href: "/stock-movements" },
+    { icon: Package, label: "Inbound Orders", href: "/inbound" },
+    { icon: Truck, label: "Outbound Orders", href: "/outbound" },
+    { icon: CreditCard, label: "Billing & Invoices", href: "/billing" },
   ],
   managementMenu: [
     { icon: Users, label: "Users & Staff", href: "/users" },
     { icon: Building2, label: "Clients Master", href: "/clients" },
     { icon: BarChart3, label: "Reports & Analytics", href: "/reports" },
-    { icon: Settings, label: "System Settings", href: "/settings" },
   ],
 };
 
 export const OPERATOR_NAV: RoleSidebarNav = {
   mainMenu: [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
-    { icon: Package, label: "Inbound Execution", badge: "3", href: "/inbound" },
-    { icon: Truck, label: "Outbound Execution", badge: "2", href: "/outbound" },
+    { icon: Package, label: "Inbound Execution", href: "/inbound" },
+    { icon: Truck, label: "Outbound Execution", href: "/outbound" },
     { icon: Warehouse, label: "Chambers Map", href: "/chamber" },
     { icon: Boxes, label: "Inventory Lookup", href: "/inventory" },
+    { icon: History, label: "Stock Movements", href: "/stock-movements" },
   ],
 };
 
@@ -56,6 +56,7 @@ export const CLIENT_NAV: RoleSidebarNav = {
   mainMenu: [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
     { icon: Boxes, label: "My Inventory", href: "/inventory" },
+    { icon: History, label: "Stock Movements", href: "/stock-movements" },
     { icon: Package, label: "Inbound Orders", href: "/inbound" },
     { icon: Truck, label: "Outbound Orders", href: "/outbound" },
     { icon: CreditCard, label: "Billing & Invoices", href: "/billing" },

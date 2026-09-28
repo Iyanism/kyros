@@ -25,7 +25,6 @@ export function SidebarItem({
   icon: Icon,
   label,
   active = false,
-  badge,
   href,
   onClick,
 }: SidebarNavItemType & { active?: boolean; onClick?: () => void }) {
@@ -41,15 +40,6 @@ export function SidebarItem({
         className={`h-4.5 w-4.5 ${active ? "text-white" : "text-[#64748b] group-hover:text-[#0f172a]"}`}
       />
       <span className="flex-1">{label}</span>
-      {badge && (
-        <span
-          className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-            active ? "bg-white/20 text-white" : "bg-[#e2e8f0] text-[#475569]"
-          }`}
-        >
-          {badge}
-        </span>
-      )}
     </Link>
   );
 }

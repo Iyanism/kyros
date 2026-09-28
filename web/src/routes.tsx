@@ -11,6 +11,9 @@ import { Clients } from "@/pages/dashboard/clients";
 import { Inbound } from "@/pages/dashboard/inbound";
 import { Inventory } from "@/pages/dashboard/inventory";
 import { Outbound } from "@/pages/dashboard/outbound";
+import { Billing } from "@/pages/dashboard/billing";
+import { StockMovements } from "@/pages/dashboard/stock_movements";
+import { Reports } from "@/pages/dashboard/reports";
 import { ErrorBoundaryPage } from "@/pages/error-boundary";
 import type { UserRole } from "@/types/user";
 
@@ -42,6 +45,10 @@ const adminLoader = () => {
   requireRoles("admin");
 };
 
+const staffLoader = () => {
+  requireRoles("admin", "operator");
+};
+
 export const router = createBrowserRouter([
   {
     ErrorBoundary: ErrorBoundaryPage,
@@ -51,10 +58,13 @@ export const router = createBrowserRouter([
       { path: "/register", element: <Register />, loader: redirectIfAuthenticated },
 
       { path: "/dashboard", element: <Dashboard />, loader: protectedLoader },
-      { path: "/chamber", element: <Chamber />, loader: protectedLoader },
+      { path: "/chamber", element: <Chamber />, loader: staffLoader },
       { path: "/inbound", element: <Inbound />, loader: protectedLoader },
       { path: "/inventory", element: <Inventory />, loader: protectedLoader },
+      { path: "/stock-movements", element: <StockMovements />, loader: protectedLoader },
       { path: "/outbound", element: <Outbound />, loader: protectedLoader },
+      { path: "/billing", element: <Billing />, loader: protectedLoader },
+      { path: "/reports", element: <Reports />, loader: adminLoader },
 
       { path: "/users", element: <Users />, loader: adminLoader },
       { path: "/clients", element: <Clients />, loader: adminLoader },
