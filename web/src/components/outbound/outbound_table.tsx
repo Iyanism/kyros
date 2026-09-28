@@ -10,6 +10,7 @@ interface OutboundTableProps {
   onSelectOrder: (order: OutboundOrderResponse) => void;
   onStatusChange: (orderId: string, status: OutboundOrderStatus) => void;
   onDeleteOrder: (orderId: string) => void;
+  onOpenPickListFlow?: (order: OutboundOrderResponse) => void;
 }
 
 export function OutboundTable({
@@ -17,6 +18,7 @@ export function OutboundTable({
   onSelectOrder,
   onStatusChange,
   onDeleteOrder,
+  onOpenPickListFlow,
 }: OutboundTableProps) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -150,10 +152,14 @@ export function OutboundTable({
                         <Button
                           type="button"
                           size="sm"
-                          onClick={() => onStatusChange(order.id, "dispatched")}
+                          onClick={() => {
+                            if (onOpenPickListFlow) {
+                              onOpenPickListFlow(order);
+                            }
+                          }}
                           className="h-8 px-2.5 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold"
                         >
-                          <Truck className="h-3.5 w-3.5 mr-1" /> Dispatch
+                          <Truck className="h-3.5 w-3.5 mr-1" /> Pick List & Dispatch
                         </Button>
                       )}
 
@@ -168,7 +174,8 @@ export function OutboundTable({
                         <Eye className="h-3.5 w-3.5 mr-1" /> Details
                       </Button>
 
-                      {(isAdmin || user?.role === "client") && (
+                      {/* Delete (admin / operator only — matches backend DELETE role) */}
+                      {isStaff && (
                         <Button
                           type="button"
                           variant="ghost"

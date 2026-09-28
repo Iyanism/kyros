@@ -15,6 +15,15 @@ export async function get_outbound_order(order_id: string): Promise<OutboundOrde
   return data;
 }
 
+export async function get_outbound_orders_by_client(
+  client_id: string
+): Promise<OutboundOrderResponse[]> {
+  const { data } = await apiClient.get<OutboundOrderResponse[]>(
+    `/outbound-orders/client/${client_id}`
+  );
+  return data;
+}
+
 export async function create_outbound_order(
   payload: OutboundOrderCreate
 ): Promise<OutboundOrderResponse> {

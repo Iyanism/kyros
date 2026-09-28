@@ -7,6 +7,10 @@ interface OutboundFiltersProps {
   selectedStatus: string;
   onStatusChange: (value: string) => void;
   onReset: () => void;
+  /** Client options (staff only). Select is hidden when the list is empty. */
+  clientsList?: { id: string; name: string }[];
+  selectedClient?: string;
+  onClientChange?: (value: string) => void;
 }
 
 export function OutboundFilters({
@@ -15,6 +19,9 @@ export function OutboundFilters({
   selectedStatus,
   onStatusChange,
   onReset,
+  clientsList,
+  selectedClient = "all",
+  onClientChange,
 }: OutboundFiltersProps) {
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#e2e8f0] shadow-xs">
@@ -30,6 +37,22 @@ export function OutboundFilters({
             className="w-full pl-9 pr-4 py-2 text-xs border border-[#e2e8f0] rounded-xl focus:outline-none focus:border-[#2457e6] focus:ring-1 focus:ring-[#2457e6] text-[#0f172a] placeholder-[#94a3b8] transition-colors"
           />
         </div>
+
+        {/* Client Filter (staff only) */}
+        {clientsList && clientsList.length > 0 && onClientChange && (
+          <select
+            value={selectedClient}
+            onChange={(e) => onClientChange(e.target.value)}
+            className="px-3 py-2 text-xs border border-[#e2e8f0] rounded-xl bg-white focus:outline-none focus:border-[#2457e6] text-[#0f172a] cursor-pointer"
+          >
+            <option value="all">All Clients</option>
+            {clientsList.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         {/* Status Filter */}
         <select
@@ -47,7 +70,7 @@ export function OutboundFilters({
       </div>
 
       {/* Reset button */}
-      {(searchTerm || selectedStatus !== "all") && (
+      {(searchTerm || selectedStatus !== "all" || selectedClient !== "all") && (
         <Button
           type="button"
           variant="ghost"

@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import type { OutboundOrderResponse, OutboundOrderStatus } from "@/types/outbound";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { OutboundOrderStatusBadge } from "./outbound_status_badge";
+import { get_client } from "@/lib/api/client";
 import { Building2, Calendar, CheckCircle2, XCircle, Truck, Package } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -10,6 +12,7 @@ interface OutboundDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChange?: (orderId: string, newStatus: OutboundOrderStatus) => void;
+  onOpenPickListFlow?: (order: OutboundOrderResponse) => void;
 }
 
 export function OutboundDetailDialog({
@@ -17,12 +20,32 @@ export function OutboundDetailDialog({
   open,
   onOpenChange,
   onStatusChange,
+  onOpenPickListFlow,
 }: OutboundDetailDialogProps) {
   const { user } = useAuth();
-  if (!order) return null;
 
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "admin" || user?.role === "operator";
+
+  const [resolvedClientName, setResolvedClientName] = useState<string | null>(null);
+
+  useEffect(() => {
+    setResolvedClientName(null);
+    if (!order || !isAdmin) return;
+    let cancelled = false;
+    get_client(order.client_id)
+      .then((client) => {
+        if (!cancelled) setResolvedClientName(client.name);
+      })
+      .catch(() => {
+        // Admin-only lookup failure → fall back to the UUID label
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.id, isAdmin]);
+
+  if (!order) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,7 +80,7 @@ export function OutboundDetailDialog({
                   Client Organization
                 </span>
                 <p className="text-[13px] font-bold text-[#0f172a] truncate mt-0.5">
-                  {order.client_name || `Client ${order.client_id.slice(0, 8)}`}
+                  {resolvedClientName || order.client_name || `Client ${order.client_id.slice(0, 8)}`}
                 </p>
                 <p className="text-[11px] text-[#64748b]">Client ID: {order.client_id}</p>
               </div>
@@ -131,13 +154,18 @@ export function OutboundDetailDialog({
               </div>
             )}
 
-            {isStaff && order.status === "approved" && onStatusChange && (
+            {isStaff && order.status === "approved" && (
               <Button
                 type="button"
                 className="bg-purple-600 hover:bg-purple-700 text-white text-xs flex items-center gap-1.5 px-4"
-                onClick={() => onStatusChange(order.id, "dispatched")}
+                onClick={() => {
+                  onOpenChange(false);
+                  if (onOpenPickListFlow) {
+                    onOpenPickListFlow(order);
+                  }
+                }}
               >
-                <Truck className="h-4 w-4" /> Mark Order Dispatched
+                <Truck className="h-4 w-4" /> Execute Pick List & Dispatch
               </Button>
             )}
 

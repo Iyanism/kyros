@@ -4,19 +4,29 @@ import { DashboardHeader, Sidebar } from "@/components/shared/dashboard_layout";
 import { OutboundStats } from "@/components/outbound/outbound_stats";
 import { OutboundFilters } from "@/components/outbound/outbound_filters";
 import { OutboundTable } from "@/components/outbound/outbound_table";
+import { CreateOutboundOrderDialog } from "@/components/outbound/create_outbound_order_dialog";
 import { OutboundDetailDialog } from "@/components/outbound/outbound_detail_dialog";
+import { OutboundPickListDialog } from "@/components/outbound/outbound_pick_list_dialog";
 import {
   get_outbound_orders,
+  get_outbound_order,
+  get_outbound_orders_by_client,
   update_outbound_order_status,
   delete_outbound_order,
 } from "@/lib/api/outbound";
+import { get_clients } from "@/lib/api/client";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
+import { useAuth } from "@/hooks/useAuth";
 import type { OutboundOrderResponse, OutboundOrderStatus } from "@/types/outbound";
+import type { ClientResponse } from "@/types/client";
 
 export function Outbound() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<OutboundOrderResponse[]>([]);
+  const [clients, setClients] = useState<ClientResponse[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedClient, setSelectedClient] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
 
   // Active detail modal
@@ -24,12 +34,35 @@ export function Outbound() {
     useState<OutboundOrderResponse | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
+  // Active pick list wizard modal
+  const [activePickListOrder, setActivePickListOrder] =
+    useState<OutboundOrderResponse | null>(null);
+  const [pickListModalOpen, setPickListModalOpen] = useState(false);
+
+  // Client list is admin-only; operators simply get no client filter
+  useEffect(() => {
+    let cancelled = false;
+    get_clients()
+      .then((data) => {
+        if (!cancelled) setClients(data);
+      })
+      .catch(() => {
+        if (!cancelled) setClients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     const loadData = async () => {
       try {
-        const ordersData = await get_outbound_orders();
+        const ordersData =
+          selectedClient === "all"
+            ? await get_outbound_orders()
+            : await get_outbound_orders_by_client(selectedClient);
         if (cancelled) return;
         setOrders(ordersData);
       } catch (error) {
@@ -45,7 +78,11 @@ export function Outbound() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [selectedClient]);
+
+  const handleAddOrder = (newOrder: OutboundOrderResponse) => {
+    setOrders((prev) => [newOrder, ...prev]);
+  };
 
   const handleStatusChange = async (
     orderId: string,
@@ -84,9 +121,31 @@ export function Outbound() {
     }
   };
 
-  const handleOpenDetail = (order: OutboundOrderResponse) => {
+  const handleOpenDetail = async (order: OutboundOrderResponse) => {
+    // Show the row immediately, then refresh with the latest server state
     setActiveDetailOrder(order);
     setDetailModalOpen(true);
+    try {
+      const fresh = await get_outbound_order(order.id);
+      setOrders((prev) => prev.map((o) => (o.id === fresh.id ? fresh : o)));
+      setActiveDetailOrder(fresh);
+    } catch {
+      // Keep the row data if the refresh fails (offline / permission edge cases)
+    }
+  };
+
+  const handleOpenPickListFlow = (order: OutboundOrderResponse) => {
+    setActivePickListOrder(order);
+    setPickListModalOpen(true);
+  };
+
+  const handlePickListComplete = (updatedOrder: OutboundOrderResponse) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))
+    );
+    if (activeDetailOrder?.id === updatedOrder.id) {
+      setActiveDetailOrder(updatedOrder);
+    }
   };
 
   const filteredOrders = orders.filter((o) => {
@@ -106,6 +165,7 @@ export function Outbound() {
   const handleResetFilters = () => {
     setSearchTerm("");
     setSelectedStatus("all");
+    setSelectedClient("all");
   };
 
   if (isLoading) {
@@ -131,6 +191,11 @@ export function Outbound() {
         <DashboardHeader
           title="Outbound Orders"
           subtitle="Manage cold storage dispatch manifests, pick list executions, and client releases"
+          actions={
+            user?.role === "client" ? (
+              <CreateOutboundOrderDialog onAddOrder={handleAddOrder} />
+            ) : null
+          }
         />
 
         <div className="p-6 lg:p-8 space-y-6">
@@ -141,6 +206,9 @@ export function Outbound() {
             onSearchChange={setSearchTerm}
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
+            clientsList={clients.map((c) => ({ id: c.id, name: c.name }))}
+            selectedClient={selectedClient}
+            onClientChange={setSelectedClient}
             onReset={handleResetFilters}
           />
 
@@ -149,6 +217,7 @@ export function Outbound() {
             onSelectOrder={handleOpenDetail}
             onStatusChange={handleStatusChange}
             onDeleteOrder={handleDeleteOrder}
+            onOpenPickListFlow={handleOpenPickListFlow}
           />
         </div>
       </main>
@@ -158,7 +227,16 @@ export function Outbound() {
         open={detailModalOpen}
         onOpenChange={setDetailModalOpen}
         onStatusChange={handleStatusChange}
+        onOpenPickListFlow={handleOpenPickListFlow}
+      />
+
+      <OutboundPickListDialog
+        order={activePickListOrder}
+        open={pickListModalOpen}
+        onOpenChange={setPickListModalOpen}
+        onComplete={handlePickListComplete}
       />
     </div>
   );
 }
+
