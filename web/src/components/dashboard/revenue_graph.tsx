@@ -15,7 +15,13 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function RevenueGraph() {
+interface RevenueGraphProps {
+  data?: { month: string; revenue: number }[];
+}
+
+export function RevenueGraph({ data }: RevenueGraphProps) {
+  const chartData = data && data.length > 0 ? data : REVENUE_BY_MONTH;
+
   return (
     <div className="lg:col-span-8 rounded-[16px] border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -48,7 +54,7 @@ export function RevenueGraph() {
       <div className="w-full h-64">
         <ChartContainer config={chartConfig} className="h-full w-full aspect-auto">
           <AreaChart
-            data={REVENUE_BY_MONTH}
+            data={chartData}
             margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
           >
             <defs>
@@ -69,7 +75,13 @@ export function RevenueGraph() {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value: number) => `₹${value}L`}
+              tickFormatter={(value: number) =>
+                value >= 100000
+                  ? `₹${(value / 100000).toFixed(1)}L`
+                  : value >= 1000
+                  ? `₹${(value / 1000).toFixed(0)}k`
+                  : `₹${value}`
+              }
               tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
             />
             <ChartTooltip
@@ -80,7 +92,7 @@ export function RevenueGraph() {
                   indicator="dot"
                   formatter={(value) => (
                     <span className="font-semibold text-[#0f172a]">
-                      ₹{value} Lakhs
+                      ₹{Number(value || 0).toLocaleString()}
                     </span>
                   )}
                 />

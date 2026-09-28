@@ -15,7 +15,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function VolumeGraph() {
+interface VolumeGraphProps {
+  data?: { day: string; orders: number }[];
+  avgOrdersText?: string;
+}
+
+export function VolumeGraph({ data, avgOrdersText }: VolumeGraphProps) {
+  const chartData = data && data.length > 0 ? data : VOLUME_BY_DAY;
+
   return (
     <div className="lg:col-span-4 rounded-[16px] border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between">
       <div>
@@ -35,7 +42,7 @@ export function VolumeGraph() {
       <div className="w-full h-48 my-2">
         <ChartContainer config={chartConfig} className="h-full w-full aspect-auto">
           <BarChart
-            data={VOLUME_BY_DAY}
+            data={chartData}
             margin={{ top: 10, right: 0, left: -25, bottom: 0 }}
           >
             <defs>
@@ -83,8 +90,8 @@ export function VolumeGraph() {
       </div>
 
       <div className="flex items-center justify-between border-t border-[#f1f5f9] pt-3 text-[11px]">
-        <span className="font-semibold text-[#2457e6]">Avg. 38 orders/day</span>
-        <span className="text-[#64748b]">Peak Load: Friday</span>
+        <span className="font-semibold text-[#2457e6]">{avgOrdersText || "Avg. 38 orders/day"}</span>
+        <span className="text-[#64748b]">Real-Time Monitor</span>
       </div>
     </div>
   );
