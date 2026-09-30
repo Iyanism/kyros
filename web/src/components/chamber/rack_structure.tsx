@@ -109,7 +109,8 @@ export function RackStructure({
 
                   <div className="text-[11px] font-medium truncate">
                     {isOccupied && slot.allocated_client_id
-                      ? `Client ${slot.allocated_client_id.slice(0, 8)}`
+                      ? slot.allocated_client_name ||
+                        `Client ${slot.allocated_client_id.slice(0, 8)}`
                       : slot.status === "available"
                       ? "Available Slot"
                       : capitalise(slot.status)}

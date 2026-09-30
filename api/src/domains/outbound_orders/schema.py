@@ -39,6 +39,7 @@ class OutboundOrderStatusUpdate(BaseModel):
 class OutboundOrderResponse(BaseModel):
     id: UUID
     client_id: UUID
+    client_name: str = ""
     total_quantity: float
     status: OutboundOrderStatus
     items: list[OutboundOrderItemResponse]

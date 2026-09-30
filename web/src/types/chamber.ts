@@ -3,7 +3,6 @@ export type ChamberStatus = "active" | "maintenance" | "inactive";
 export type RackStatus = "active" | "full" | "maintenance" | "inactive";
 export type SlotStatus = "available" | "reserved" | "occupied" | "maintenance";
 
-
 export interface ChamberRequest {
   name: string;
   code: string;
@@ -28,7 +27,6 @@ export interface ChamberSummary {
   created_at: string;
   updated_at: string;
 }
-
 
 export interface ChamberDetail extends ChamberSummary {
   racks: RackDetail[];
@@ -58,7 +56,7 @@ export interface SlotResponse {
   location_code: string;
   status: SlotStatus;
   allocated_client_id: string | null;
+  allocated_client_name?: string | null;
   created_at: string;
   updated_at: string;
 }
-

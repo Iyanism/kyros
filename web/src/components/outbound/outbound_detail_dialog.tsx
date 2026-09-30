@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
 import type { OutboundOrderResponse, OutboundOrderStatus } from "@/types/outbound";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { OutboundOrderStatusBadge } from "./outbound_status_badge";
-import { get_client } from "@/lib/api/client";
 import { Building2, Calendar, CheckCircle2, XCircle, Truck, Package } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -26,24 +24,6 @@ export function OutboundDetailDialog({
 
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "admin" || user?.role === "operator";
-
-  const [resolvedClientName, setResolvedClientName] = useState<string | null>(null);
-
-  useEffect(() => {
-    setResolvedClientName(null);
-    if (!order || !isAdmin) return;
-    let cancelled = false;
-    get_client(order.client_id)
-      .then((client) => {
-        if (!cancelled) setResolvedClientName(client.name);
-      })
-      .catch(() => {
-        // Admin-only lookup failure → fall back to the UUID label
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [order?.id, isAdmin]);
 
   if (!order) return null;
 
@@ -80,7 +60,7 @@ export function OutboundDetailDialog({
                   Client Organization
                 </span>
                 <p className="text-[13px] font-bold text-[#0f172a] truncate mt-0.5">
-                  {resolvedClientName || order.client_name || `Client ${order.client_id.slice(0, 8)}`}
+                  {order.client_name || `Client ${order.client_id.slice(0, 8)}`}
                 </p>
                 <p className="text-[11px] text-[#64748b]">Client ID: {order.client_id}</p>
               </div>

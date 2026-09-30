@@ -24,15 +24,6 @@ class InboundOrderRepository:
         stmt = (
             select(InboundOrder)
             .where(InboundOrder.id == order_id)
-            .options(selectinload(InboundOrder.order_items))
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def get_with_items_and_client(self, order_id: UUID) -> InboundOrder | None:
-        stmt = (
-            select(InboundOrder)
-            .where(InboundOrder.id == order_id)
             .options(
                 selectinload(InboundOrder.order_items),
                 selectinload(InboundOrder.client),
@@ -51,6 +42,7 @@ class InboundOrderRepository:
         stmt = (
             select(InboundOrder)
             .options(selectinload(InboundOrder.order_items))
+            .options(selectinload(InboundOrder.client))
             .order_by(InboundOrder.created_at.desc())
         )
         result = await self.db.execute(stmt)
@@ -60,7 +52,10 @@ class InboundOrderRepository:
         stmt = (
             select(InboundOrder)
             .where(InboundOrder.client_id == client_id)
-            .options(selectinload(InboundOrder.order_items))
+            .options(
+                selectinload(InboundOrder.order_items),
+                selectinload(InboundOrder.client),
+            )
             .order_by(InboundOrder.created_at.desc())
         )
         result = await self.db.execute(stmt)
@@ -73,7 +68,10 @@ class InboundOrderRepository:
                 InboundOrder.client_id == client_id,
                 InboundOrder.status == OrderRequestStatus.STORED,
             )
-            .options(selectinload(InboundOrder.order_items))
+            .options(
+                selectinload(InboundOrder.order_items),
+                selectinload(InboundOrder.client),
+            )
             .order_by(InboundOrder.created_at.desc())
         )
         result = await self.db.execute(stmt)
@@ -90,7 +88,7 @@ class InboundOrderRepository:
     async def update(
         self, order_id: UUID, update_data: Mapping[str, UUID | str | int]
     ) -> InboundOrder | None:
-        order = await self.get_by_id(order_id)
+        order = await self.get_with_items(order_id)
         if order is None:
             return None
 
@@ -99,19 +97,21 @@ class InboundOrderRepository:
 
         await self.db.flush()
         await self.db.refresh(order)
+        await self.db.refresh(order, ["client"])
 
         return order
 
     async def update_status(
         self, order_id: UUID, status: OrderRequestStatus
     ) -> InboundOrder | None:
-        order = await self.get_by_id(order_id)
+        order = await self.get_with_items(order_id)
         if order is None:
             return None
 
         order.status = status
         await self.db.flush()
         await self.db.refresh(order)
+        await self.db.refresh(order, ["client"])
 
         return order
 

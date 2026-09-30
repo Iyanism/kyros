@@ -78,6 +78,7 @@ class InboundOrderService:
 
         try:
             order = await self.order_repo.create(order)
+            order.client = client
             items = [
                 InboundOrderItem(order_id=order.id, **item.model_dump())
                 for item in order_data.items
@@ -170,7 +171,9 @@ class InboundOrderService:
 
         order = await self.order_repo.update_status(order_id, new_status)
         if order is None:
-            raise InboundOrderNotFoundError(f"Order {order_id} not found after status update")
+            raise InboundOrderNotFoundError(
+                f"Order {order_id} not found after status update"
+            )
 
         items = await self.item_repo.list_by_order(order_id)
         logger.info(
@@ -199,6 +202,7 @@ class InboundOrderService:
         return InboundOrderResponse(
             id=order.id,
             client_id=order.client_id,
+            client_name=order.client.name if order.client else "",
             vehicle_number=order.vehicle_number,
             total_quantity=order.total_quantity,
             status=order.status,

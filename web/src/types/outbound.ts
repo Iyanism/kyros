@@ -15,7 +15,7 @@ export interface OutboundOrderItemResponse {
 export interface OutboundOrderResponse {
   id: string;
   client_id: string;
-  client_name?: string;
+  client_name: string;
   total_quantity: number;
   status: OutboundOrderStatus;
   items: OutboundOrderItemResponse[];

@@ -61,6 +61,7 @@ class SlotResponse(BaseModel):
     location_code: str
     status: SlotStatus
     allocated_client_id: UUID | None = None
+    allocated_client_name: str | None = None
     created_at: datetime
     updated_at: datetime
 

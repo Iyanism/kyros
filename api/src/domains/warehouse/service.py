@@ -1,9 +1,11 @@
+from collections.abc import Mapping, Sequence
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logger import logger
+from src.domains.clients.repository import ClientRepository
 from src.domains.warehouse.model import Chamber, Rack, Slot, SlotStatus
 from src.domains.warehouse.repository import (
     ChamberRepository,
@@ -42,6 +44,7 @@ class WarehouseService:
         self.chamber_repo = ChamberRepository(db)
         self.rack_repo = RackRepository(db)
         self.slot_repo = SlotRepository(db)
+        self.client_repo = ClientRepository(db)
 
     async def create_chamber(
         self, chamber_data: ChamberCreate
@@ -69,8 +72,7 @@ class WarehouseService:
                 for bay in range(1, chamber_data.bays_per_rack + 1):
                     for level in range(1, chamber_data.levels_per_rack + 1):
                         location_code = (
-                            f"{chamber.code}-{rack.rack_number}"
-                            f"-B{bay:02d}-L{level:02d}"
+                            f"{chamber.code}-{rack.rack_number}-B{bay:02d}-L{level:02d}"
                         )
                         slot = Slot(
                             rack_id=rack.id,
@@ -81,7 +83,7 @@ class WarehouseService:
                             status=SlotStatus.AVAILABLE,
                         )
                         slot = await self.slot_repo.create(slot)
-                        slot_responses.append(self._to_slot_response(slot))
+                        slot_responses.append(self._to_slot_response(slot, {}))
                 rack_details.append(
                     RackDetailResponse(
                         id=rack.id,
@@ -141,7 +143,9 @@ class WarehouseService:
         total_occupied = await self.slot_repo.count_occupied_by_chamber(chamber_id)
         total_racks = await self.rack_repo.count_by_chamber(chamber_id)
 
-        return self._to_chamber_response(chamber, total_racks, total_slots, total_occupied)
+        return self._to_chamber_response(
+            chamber, total_racks, total_slots, total_occupied
+        )
 
     async def get_chamber_detail(self, chamber_id: UUID) -> ChamberDetailResponse:
         chamber = await self.chamber_repo.get_with_details(chamber_id)
@@ -150,11 +154,12 @@ class WarehouseService:
 
         total_slots = 0
         total_occupied = 0
+        client_names = await self._client_names(
+            [s for rack in chamber.racks for s in rack.slots]
+        )
         rack_details: list[RackDetailResponse] = []
         for rack in chamber.racks:
-            occupied = sum(
-                1 for s in rack.slots if s.status == SlotStatus.OCCUPIED
-            )
+            occupied = sum(1 for s in rack.slots if s.status == SlotStatus.OCCUPIED)
             total_slots += len(rack.slots)
             total_occupied += occupied
             rack_details.append(
@@ -168,7 +173,7 @@ class WarehouseService:
                     status=rack.status,
                     created_at=rack.created_at,
                     updated_at=rack.updated_at,
-                    slots=[self._to_slot_response(s) for s in rack.slots],
+                    slots=[self._to_slot_response(s, client_names) for s in rack.slots],
                 )
             )
 
@@ -214,7 +219,9 @@ class WarehouseService:
             total_occupied = await self.slot_repo.count_occupied_by_chamber(chamber.id)
             total_racks = await self.rack_repo.count_by_chamber(chamber.id)
             responses.append(
-                self._to_chamber_response(chamber, total_racks, total_slots, total_occupied)
+                self._to_chamber_response(
+                    chamber, total_racks, total_slots, total_occupied
+                )
             )
         return responses
 
@@ -268,8 +275,7 @@ class WarehouseService:
             for bay in range(1, bays_per_rack + 1):
                 for level in range(1, levels_per_rack + 1):
                     location_code = (
-                        f"{chamber.code}-{rack.rack_number}"
-                        f"-B{bay:02d}-L{level:02d}"
+                        f"{chamber.code}-{rack.rack_number}-B{bay:02d}-L{level:02d}"
                     )
                     slot = Slot(
                         rack_id=rack.id,
@@ -324,13 +330,15 @@ class WarehouseService:
         if not slots:
             return []
 
-        return [self._to_slot_response(s) for s in slots]
+        client_names = await self._client_names(slots)
+        return [self._to_slot_response(s, client_names) for s in slots]
 
     async def get_slot(self, slot_id: UUID) -> SlotResponse:
         slot = await self.slot_repo.get_with_rack(slot_id)
         if slot is None:
             raise WarehouseNotFoundError("Slot not found")
-        return self._to_slot_response(slot)
+        client_names = await self._client_names([slot])
+        return self._to_slot_response(slot, client_names)
 
     async def delete_slot(self, slot_id: UUID) -> None:
         slot = await self.slot_repo.get_by_id(slot_id)
@@ -386,7 +394,18 @@ class WarehouseService:
             updated_at=rack.updated_at,
         )
 
-    def _to_slot_response(self, slot: Slot) -> SlotResponse:
+    async def _client_names(self, slots: Sequence[Slot]) -> dict[UUID, str]:
+        client_ids = {s.allocated_client_id for s in slots if s.allocated_client_id}
+        return await self.client_repo.list_names_by_ids(client_ids)
+
+    def _to_slot_response(
+        self, slot: Slot, client_names: Mapping[UUID, str]
+    ) -> SlotResponse:
+        allocated_client_name = (
+            client_names.get(slot.allocated_client_id)
+            if slot.allocated_client_id
+            else None
+        )
         return SlotResponse(
             id=slot.id,
             rack_id=slot.rack_id,
@@ -396,6 +415,7 @@ class WarehouseService:
             location_code=slot.location_code,
             status=slot.status,
             allocated_client_id=slot.allocated_client_id,
+            allocated_client_name=allocated_client_name,
             created_at=slot.created_at,
             updated_at=slot.updated_at,
         )

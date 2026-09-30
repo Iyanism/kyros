@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InboundOrderStatusBadge } from "./inbound_status_badge";
 import { InboundItemsList } from "./inbound_items_list";
-import { get_client } from "@/lib/api/client";
 import { update_inbound_order } from "@/lib/api/order";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import { Building2, Truck, Calendar, Clock, PackageCheck, CheckCircle2, XCircle, Play, ArrowRight, Pencil, Check } from "lucide-react";
@@ -34,27 +33,9 @@ export function InboundDetailDialog({
   const isAdmin = user?.role === "admin";
   const isStaff = user?.role === "admin" || user?.role === "operator";
 
-  const [resolvedClientName, setResolvedClientName] = useState<string | null>(null);
   const [isEditingVehicle, setIsEditingVehicle] = useState(false);
   const [vehicleDraft, setVehicleDraft] = useState("");
   const [isSavingVehicle, setIsSavingVehicle] = useState(false);
-
-  // Admins can resolve the client name; operators/clients only have the UUID
-  useEffect(() => {
-    setResolvedClientName(null);
-    if (!order || !isAdmin) return;
-    let cancelled = false;
-    get_client(order.client_id)
-      .then((client) => {
-        if (!cancelled) setResolvedClientName(client.name);
-      })
-      .catch(() => {
-        // Non-admin roles / lookup failure → fall back to the UUID label
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [order?.id, isAdmin]);
 
   useEffect(() => {
     setIsEditingVehicle(false);
@@ -117,7 +98,7 @@ export function InboundDetailDialog({
                   Client Organization
                 </span>
                 <p className="text-[13px] font-bold text-[#0f172a] truncate mt-0.5">
-                  {resolvedClientName || order.client_name || `Client ${order.client_id.slice(0, 8)}`}
+                  {order.client_name || `Client ${order.client_id.slice(0, 8)}`}
                 </p>
                 <p className="text-[11px] text-[#64748b]">Client ID: {order.client_id}</p>
               </div>

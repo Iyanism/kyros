@@ -24,7 +24,10 @@ class OutboundOrderRepository:
         stmt = (
             select(OutboundOrder)
             .where(OutboundOrder.id == order_id)
-            .options(selectinload(OutboundOrder.outbound_items))
+            .options(
+                selectinload(OutboundOrder.outbound_items),
+                selectinload(OutboundOrder.client),
+            )
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
@@ -38,7 +41,10 @@ class OutboundOrderRepository:
     async def list_all(self) -> Sequence[OutboundOrder]:
         stmt = (
             select(OutboundOrder)
-            .options(selectinload(OutboundOrder.outbound_items))
+            .options(
+                selectinload(OutboundOrder.outbound_items),
+                selectinload(OutboundOrder.client),
+            )
             .order_by(OutboundOrder.created_at.desc())
         )
         result = await self.db.execute(stmt)
@@ -48,7 +54,10 @@ class OutboundOrderRepository:
         stmt = (
             select(OutboundOrder)
             .where(OutboundOrder.client_id == client_id)
-            .options(selectinload(OutboundOrder.outbound_items))
+            .options(
+                selectinload(OutboundOrder.outbound_items),
+                selectinload(OutboundOrder.client),
+            )
             .order_by(OutboundOrder.created_at.desc())
         )
         result = await self.db.execute(stmt)
@@ -65,7 +74,7 @@ class OutboundOrderRepository:
     async def update(
         self, order_id: UUID, update_data: Mapping[str, UUID | str | int | float]
     ) -> OutboundOrder | None:
-        order = await self.get_by_id(order_id)
+        order = await self.get_with_items(order_id)
         if order is None:
             return None
 
@@ -74,19 +83,21 @@ class OutboundOrderRepository:
 
         await self.db.flush()
         await self.db.refresh(order)
+        await self.db.refresh(order, ["client"])
 
         return order
 
     async def update_status(
         self, order_id: UUID, status: OutboundOrderStatus
     ) -> OutboundOrder | None:
-        order = await self.get_by_id(order_id)
+        order = await self.get_with_items(order_id)
         if order is None:
             return None
 
         order.status = status
         await self.db.flush()
         await self.db.refresh(order)
+        await self.db.refresh(order, ["client"])
 
         return order
 

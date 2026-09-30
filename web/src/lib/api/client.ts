@@ -7,11 +7,6 @@ export async function get_clients(): Promise<ClientResponse[]>{
     return data
 }
 
-export async function get_client(client_id: string): Promise<ClientResponse> {
-    const { data } = await apiClient.get<ClientResponse>(`/clients/${client_id}`)
-    return data
-}
-
 export async function create_client(payload: ClientCreate): Promise<ClientResponse> {
     const { data } = await apiClient.post<ClientResponse>("/clients", payload)
     return data

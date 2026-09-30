@@ -1,4 +1,13 @@
-import { Calendar, Info, Tag, Package, User, Weight, MapPin, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  Info,
+  Tag,
+  Package,
+  User,
+  Weight,
+  MapPin,
+  Trash2,
+} from "lucide-react";
 import type { SlotResponse } from "@/types/chamber";
 
 interface SlotInspectorProps {
@@ -9,12 +18,12 @@ interface SlotInspectorProps {
 // Helper to format dates
 const formatDate = (dateString: string) => {
   try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch {
     return dateString;
@@ -22,21 +31,24 @@ const formatDate = (dateString: string) => {
 };
 
 // Helper to get status color
-const getStatusColor = (status: SlotResponse['status']) => {
+const getStatusColor = (status: SlotResponse["status"]) => {
   switch (status) {
-    case 'occupied':
-      return 'bg-[#2457e6] text-white';
-    case 'reserved':
-      return 'bg-amber-500 text-white';
-    case 'maintenance':
-      return 'bg-red-500 text-white';
-    case 'available':
+    case "occupied":
+      return "bg-[#2457e6] text-white";
+    case "reserved":
+      return "bg-amber-500 text-white";
+    case "maintenance":
+      return "bg-red-500 text-white";
+    case "available":
     default:
-      return 'bg-[#f8fafc] text-[#94a3b8] border border-dashed border-[#cbd5e1]';
+      return "bg-[#f8fafc] text-[#94a3b8] border border-dashed border-[#cbd5e1]";
   }
 };
 
-export function SlotInspector({ activeSlot, onDeleteSlot }: SlotInspectorProps) {
+export function SlotInspector({
+  activeSlot,
+  onDeleteSlot,
+}: SlotInspectorProps) {
   // If no slot selected, show empty state
   if (!activeSlot) {
     return (
@@ -57,7 +69,8 @@ export function SlotInspector({ activeSlot, onDeleteSlot }: SlotInspectorProps) 
               Select a slot position
             </p>
             <p className="text-[11px] mt-1 text-[#94a3b8] max-w-xs">
-              Click any slot in the rack structure to view detailed information about its contents and status.
+              Click any slot in the rack structure to view detailed information
+              about its contents and status.
             </p>
           </div>
         </div>
@@ -69,9 +82,9 @@ export function SlotInspector({ activeSlot, onDeleteSlot }: SlotInspectorProps) 
     );
   }
 
-  const isOccupied = activeSlot.status === 'occupied';
+  const isOccupied = activeSlot.status === "occupied";
   const statusColor = getStatusColor(activeSlot.status);
-  const formattedQuantity = isOccupied ? '1,000' : '0';
+  const formattedQuantity = isOccupied ? "1,000" : "0";
 
   return (
     <div className="rounded-[16px] border border-[#e2e8f0] bg-white p-6 shadow-sm flex flex-col justify-between h-full">
@@ -95,7 +108,9 @@ export function SlotInspector({ activeSlot, onDeleteSlot }: SlotInspectorProps) 
                   {activeSlot.location_code}
                 </div>
               </div>
-              <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${statusColor}`}>
+              <div
+                className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${statusColor}`}
+              >
                 {activeSlot.status}
               </div>
             </div>
@@ -130,8 +145,9 @@ export function SlotInspector({ activeSlot, onDeleteSlot }: SlotInspectorProps) 
               </span>
               <span className="font-semibold text-[#2457e6]">
                 {isOccupied && activeSlot.allocated_client_id
-                  ? activeSlot.allocated_client_id
-                  : 'N/A'}
+                  ? activeSlot.allocated_client_name ||
+                    `Client ${activeSlot.allocated_client_id.slice(0, 8)}`
+                  : "N/A"}
               </span>
             </div>
 
@@ -158,12 +174,12 @@ export function SlotInspector({ activeSlot, onDeleteSlot }: SlotInspectorProps) 
           <div className="mt-2">
             <div className="flex justify-between text-[10px] text-[#64748b] mb-1">
               <span>Capacity Used</span>
-              <span>{isOccupied ? '100%' : '0%'}</span>
+              <span>{isOccupied ? "100%" : "0%"}</span>
             </div>
             <div className="w-full bg-[#f1f5f9] h-2 rounded-full overflow-hidden">
               <div
                 className="bg-[#2457e6] h-full rounded-full transition-all duration-300"
-                style={{ width: isOccupied ? '100%' : '0%' }}
+                style={{ width: isOccupied ? "100%" : "0%" }}
               />
             </div>
           </div>

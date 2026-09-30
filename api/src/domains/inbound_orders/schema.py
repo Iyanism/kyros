@@ -48,6 +48,7 @@ class InboundOrderStatusUpdate(BaseModel):
 class InboundOrderResponse(BaseModel):
     id: UUID
     client_id: UUID
+    client_name: str = ""
     vehicle_number: str
     total_quantity: float
     status: OrderRequestStatus

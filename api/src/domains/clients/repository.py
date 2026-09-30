@@ -35,6 +35,13 @@ class ClientRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def list_names_by_ids(self, client_ids: set[UUID]) -> dict[UUID, str]:
+        if not client_ids:
+            return {}
+        stmt = select(Client.id, Client.name).where(Client.id.in_(client_ids))
+        result = await self.db.execute(stmt)
+        return dict(result.all())
+
     async def toggle_status(self, client_id: UUID) -> Client | None:
         client: Client | None = await self.get_by_id(client_id)
         if client is None:

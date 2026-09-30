@@ -42,12 +42,11 @@ export interface InboundOrderUpdate {
 export interface InboundOrderResponse {
   id: string;
   client_id: string;
+  client_name: string;
   vehicle_number: string;
   total_quantity: number;
   status: OrderStatus;
   items: OrderItemResponse[];
   created_at: string;
   updated_at: string;
-  client_name?: string;
 }
-

@@ -96,6 +96,7 @@ class OutboundOrderService:
 
         try:
             order = await self.order_repo.create(order)
+            order.client = client
             items = [
                 OutboundOrderItem(outbound_order_id=order.id, **item.model_dump())
                 for item in order_data.items
@@ -282,6 +283,7 @@ class OutboundOrderService:
         return OutboundOrderResponse(
             id=order.id,
             client_id=order.client_id,
+            client_name=order.client.name if order.client else "",
             total_quantity=order.total_quantity,
             status=order.status,
             items=[OutboundOrderItemResponse.model_validate(item) for item in items],
