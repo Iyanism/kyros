@@ -18,9 +18,10 @@ const chartConfig = {
 interface VolumeGraphProps {
   data?: { day: string; orders: number }[];
   avgOrdersText?: string;
+  title?: string;
 }
 
-export function VolumeGraph({ data, avgOrdersText }: VolumeGraphProps) {
+export function VolumeGraph({ data, avgOrdersText, title }: VolumeGraphProps) {
   const chartData = data && data.length > 0 ? data : VOLUME_BY_DAY;
 
   return (
@@ -28,7 +29,7 @@ export function VolumeGraph({ data, avgOrdersText }: VolumeGraphProps) {
       <div>
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-display text-[16px] font-semibold text-[#0f172a]">
-            Fulfillment Volume
+            {title ?? "Fulfillment Volume"}
           </h3>
           <span className="text-[11px] font-medium text-[#64748b] bg-[#f1f5f9] px-2 py-0.5 rounded-md">
             7 Days

@@ -17,9 +17,23 @@ const chartConfig = {
 
 interface RevenueGraphProps {
   data?: { month: string; revenue: number }[];
+  title?: string;
+  subtitle?: string;
+  legendLabel?: string;
+  headerStat?: { label: string; value: string };
+  footerText?: string;
+  showExtras?: boolean;
 }
 
-export function RevenueGraph({ data }: RevenueGraphProps) {
+export function RevenueGraph({
+  data,
+  title,
+  subtitle,
+  legendLabel,
+  headerStat,
+  footerText,
+  showExtras = true,
+}: RevenueGraphProps) {
   const chartData = data && data.length > 0 ? data : REVENUE_BY_MONTH;
 
   return (
@@ -28,26 +42,38 @@ export function RevenueGraph({ data }: RevenueGraphProps) {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-display text-[16px] font-semibold text-[#0f172a]">
-              Revenue & Billing Velocity
+              {title ?? "Revenue & Billing Velocity"}
             </h3>
-            <span className="rounded-md bg-[#e0e7ff] px-2 py-0.5 text-[10px] font-semibold text-[#3730a3]">
-              FY 2026
-            </span>
+            {showExtras && (
+              <span className="rounded-md bg-[#e0e7ff] px-2 py-0.5 text-[10px] font-semibold text-[#3730a3]">
+                FY 2026
+              </span>
+            )}
           </div>
           <p className="text-[12px] text-[#64748b]">
-            Monthly aggregation of storage duration rates & handling charges
+            {subtitle ?? "Monthly aggregation of storage duration rates & handling charges"}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {headerStat && (
+            <div className="flex items-center gap-2 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] px-3 py-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">
+                {headerStat.label}
+              </span>
+              <span className="text-[13px] font-bold text-[#1d4ed8]">{headerStat.value}</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#2457e6] bg-[#eff6ff] px-3 py-1.5 rounded-lg border border-[#bfdbfe]">
-            <span className="h-2 w-2 rounded-full bg-[#2457e6]" /> Revenue (₹)
+            <span className="h-2 w-2 rounded-full bg-[#2457e6]" /> {legendLabel ?? "Revenue (₹)"}
           </div>
-          <button
-            type="button"
-            className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1.5 text-[11px] font-semibold text-[#475569] hover:bg-[#f1f5f9] transition"
-          >
-            Export Report
-          </button>
+          {showExtras && (
+            <button
+              type="button"
+              className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-3 py-1.5 text-[11px] font-semibold text-[#475569] hover:bg-[#f1f5f9] transition"
+            >
+              Export Report
+            </button>
+          )}
         </div>
       </div>
 
@@ -115,6 +141,12 @@ export function RevenueGraph({ data }: RevenueGraphProps) {
           </AreaChart>
         </ChartContainer>
       </div>
+
+      {footerText && (
+        <div className="mt-4 border-t border-[#f1f5f9] pt-3 text-[11px] text-[#64748b]">
+          <span className="font-semibold text-[#0f172a]">{footerText}</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { KpiCard } from "@/components/dashboard/kpi";
 import { RevenueGraph } from "@/components/dashboard/revenue_graph";
 import { VolumeGraph } from "@/components/dashboard/volume_graph";
 import { DashboardHeader, Sidebar } from "@/components/shared/dashboard_layout";
+import { ClientDashboard } from "./client_dashboard";
 import {
   get_chambers,
 } from "@/lib/api/chamber";
@@ -37,6 +38,16 @@ import type { OutboundOrderResponse } from "@/types/outbound";
 import type { ActivityItem, AlertItem, ChamberSummary as UIChamberSummary, Kpi } from "@/lib/data/dashboard";
 
 export function Dashboard() {
+  const { user } = useAuth();
+
+  if (user?.role === "client") {
+    return <ClientDashboard />;
+  }
+
+  return <StaffDashboard />;
+}
+
+function StaffDashboard() {
   const { user } = useAuth();
   const isStaff = user?.role === "admin" || user?.role === "operator";
   const [isLoading, setIsLoading] = useState(true);
