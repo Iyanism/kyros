@@ -10,6 +10,7 @@ import { InboundProcessingDialog } from "@/components/inbound/inbound_processing
 import {
   get_inbound_orders,
   get_inbound_order,
+  get_inbound_orders_by_client,
   update_inbound_order_status,
   delete_inbound_order,
 } from "@/lib/api/order";
@@ -36,18 +37,32 @@ export function Inbound() {
     useState<InboundOrderResponse | null>(null);
   const [processingModalOpen, setProcessingModalOpen] = useState(false);
 
+  // Client list is admin-only; operators/clients simply get no filter
+  useEffect(() => {
+    let cancelled = false;
+    get_clients()
+      .then((data) => {
+        if (!cancelled) setClients(data);
+      })
+      .catch(() => {
+        if (!cancelled) setClients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     const loadData = async () => {
       try {
-        const [ordersData, clientsData] = await Promise.all([
-          get_inbound_orders(),
-          get_clients().catch(() => []),
-        ]);
+        const ordersData =
+          selectedClient === "all"
+            ? await get_inbound_orders()
+            : await get_inbound_orders_by_client(selectedClient);
         if (cancelled) return;
         setOrders(ordersData);
-        setClients(clientsData);
       } catch (error) {
         console.error("Failed to load inbound orders:", error);
         toast.error(getApiErrorMessage(error));
@@ -61,7 +76,7 @@ export function Inbound() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [selectedClient]);
 
   const handleAddOrder = (newOrder: InboundOrderResponse) => {
     setOrders((prev) => [newOrder, ...prev]);
@@ -191,7 +206,10 @@ export function Inbound() {
           title="Inbound Orders"
           subtitle="Manage cold storage shipment intake, vehicle logging, and batch manifests"
           actions={
-            <CreateInboundOrderDialog onAddOrder={handleAddOrder} clients={clients} />
+            <CreateInboundOrderDialog
+              onAddOrder={handleAddOrder}
+              clients={clients}
+            />
           }
         />
 
@@ -237,4 +255,3 @@ export function Inbound() {
     </div>
   );
 }
-

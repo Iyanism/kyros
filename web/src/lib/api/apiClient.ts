@@ -1,6 +1,7 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { env } from "@/config/env";
 import { useAuthStore } from "@/store/authStore";
+import { refreshAccessToken } from "./auth";
 
 export interface ApiError {
   code: string;
@@ -29,22 +30,6 @@ apiClient.interceptors.request.use((config) => {
 });
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & { __retried?: boolean };
-
-// Single-flight refresh so parallel 401s only trigger one /auth/refresh call
-let refreshPromise: Promise<string | null> | null = null;
-
-function refreshAccessToken(): Promise<string | null> {
-  if (!refreshPromise) {
-    refreshPromise = apiClient
-      .post<{ access_token: string }>("/auth/refresh")
-      .then((response) => response.data.access_token)
-      .catch(() => null)
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
-}
 
 function endSession(): void {
   useAuthStore.getState().clearSession();

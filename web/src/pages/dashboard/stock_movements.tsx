@@ -6,9 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   get_stock_levels,
+  get_stock_levels_by_client,
   get_stock_movements,
+  get_stock_movements_by_client,
 } from "@/lib/api/stock_movement";
+import { get_clients } from "@/lib/api/client";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
+import {
+  dateInRange,
+  DateRangeFilter,
+  EMPTY_DATE_RANGE,
+  type DateRange,
+} from "@/components/shared/date_range_filter";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -26,25 +35,47 @@ import type {
   StockMovementResponse,
   TemperatureCategory,
 } from "@/types/stock_movement";
+import type { ClientResponse } from "@/types/client";
 
 export function StockMovements() {
   const [activeTab, setActiveTab] = useState<"levels" | "movements">("levels");
   const [stockLevels, setStockLevels] = useState<StockLevelResponse[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovementResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [clients, setClients] = useState<ClientResponse[]>([]);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [movementFilter, setMovementFilter] = useState<string>("all");
   const [tempFilter, setTempFilter] = useState<string>("all");
+  const [selectedClient, setSelectedClient] = useState("all");
+  const [movementRange, setMovementRange] = useState<DateRange>(EMPTY_DATE_RANGE);
+
+  // Client list is admin-only; operators/clients simply get no filter
+  useEffect(() => {
+    let cancelled = false;
+    get_clients()
+      .then((data) => {
+        if (!cancelled) setClients(data);
+      })
+      .catch(() => {
+        if (!cancelled) setClients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [levelsData, movementsData] = await Promise.all([
-        get_stock_levels(),
-        get_stock_movements(),
-      ]);
+      const [levelsData, movementsData] =
+        selectedClient === "all"
+          ? await Promise.all([get_stock_levels(), get_stock_movements()])
+          : await Promise.all([
+              get_stock_levels_by_client(selectedClient),
+              get_stock_movements_by_client(selectedClient),
+            ]);
       setStockLevels(levelsData);
       setStockMovements(movementsData);
     } catch (error) {
@@ -57,7 +88,7 @@ export function StockMovements() {
 
   useEffect(() => {
     void fetchData();
-  }, []);
+  }, [selectedClient]);
 
   // Stats
   const totalStockSlots = stockLevels.length;
@@ -93,8 +124,9 @@ export function StockMovements() {
 
     const matchesMovement = movementFilter === "all" || m.movement_type === movementFilter;
     const matchesTemp = tempFilter === "all" || m.temperature_category === tempFilter;
+    const matchesDate = dateInRange(m.created_at, movementRange);
 
-    return matchesSearch && matchesMovement && matchesTemp;
+    return matchesSearch && matchesMovement && matchesTemp && matchesDate;
   });
 
   const getMovementBadge = (type: MovementType) => {
@@ -268,6 +300,21 @@ export function StockMovements() {
                 />
               </div>
 
+              {clients.length > 0 && (
+                <select
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                  className="px-3 py-1.5 text-xs border border-[#e2e8f0] rounded-xl bg-[#f8fafc] font-medium text-[#0f172a]"
+                >
+                  <option value="all">All Clients</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
               {activeTab === "movements" && (
                 <div className="flex items-center gap-1.5">
                   <SlidersHorizontal className="h-3.5 w-3.5 text-[#64748b]" />
@@ -282,6 +329,14 @@ export function StockMovements() {
                     <option value="adjustment">Stock Adjustment</option>
                   </select>
                 </div>
+              )}
+
+              {activeTab === "movements" && (
+                <DateRangeFilter
+                  label="Movement Date"
+                  value={movementRange}
+                  onChange={setMovementRange}
+                />
               )}
 
               <select

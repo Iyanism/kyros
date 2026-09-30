@@ -73,7 +73,6 @@ export function Users() {
       setUsers((prevUsers) => prevUsers.map((user) => (user.id === res.id ? res : user)));
       setIsUpdated(false);
     } catch (error) {
-      console.log("Failed to toggle status:", error);
       toast.error(getApiErrorMessage(error));
     }
   };

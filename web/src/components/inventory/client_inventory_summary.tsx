@@ -3,6 +3,8 @@ import type { ClientInventorySummary, PalletItemResponse } from "@/types/invento
 
 interface ClientInventorySummaryProps {
   items: PalletItemResponse[];
+  /** Server-provided rollup; when omitted the panel derives it from `items`. */
+  summaries?: ClientInventorySummary[] | undefined;
 }
 
 /** Groups the currently listed pallets by (product, batch) — mirrors the backend rollup. */
@@ -32,8 +34,11 @@ function deriveSummaries(items: PalletItemResponse[]): ClientInventorySummary[] 
   return [...groups.values()].sort((a, b) => b.total_quantity - a.total_quantity);
 }
 
-export function ClientInventorySummaryPanel({ items }: ClientInventorySummaryProps) {
-  const summaries = deriveSummaries(items);
+export function ClientInventorySummaryPanel({
+  items,
+  summaries: serverSummaries,
+}: ClientInventorySummaryProps) {
+  const summaries = serverSummaries ?? deriveSummaries(items);
 
   const totals = summaries.reduce(
     (acc, s) => ({

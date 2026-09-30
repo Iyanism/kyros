@@ -8,6 +8,7 @@ import {
   Package,
   Truck,
   Users,
+  UserRound,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,7 @@ export const ADMIN_NAV: RoleSidebarNav = {
     { icon: Package, label: "Inbound Orders", href: "/inbound" },
     { icon: Truck, label: "Outbound Orders", href: "/outbound" },
     { icon: CreditCard, label: "Billing & Invoices", href: "/billing" },
+    { icon: UserRound, label: "My Account", href: "/account" },
   ],
   managementMenu: [
     { icon: Users, label: "Users & Staff", href: "/users" },
@@ -49,6 +51,7 @@ export const OPERATOR_NAV: RoleSidebarNav = {
     { icon: Warehouse, label: "Chambers Map", href: "/chamber" },
     { icon: Boxes, label: "Inventory Lookup", href: "/inventory" },
     { icon: History, label: "Stock Movements", href: "/stock-movements" },
+    { icon: UserRound, label: "My Account", href: "/account" },
   ],
 };
 
@@ -60,6 +63,7 @@ export const CLIENT_NAV: RoleSidebarNav = {
     { icon: Package, label: "Inbound Orders", href: "/inbound" },
     { icon: Truck, label: "Outbound Orders", href: "/outbound" },
     { icon: CreditCard, label: "Billing & Invoices", href: "/billing" },
+    { icon: UserRound, label: "My Account", href: "/account" },
   ],
 };
 

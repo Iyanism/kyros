@@ -11,10 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { generate_pick_list, get_pick_list_by_outbound_order } from "@/lib/api/inventory";
+import { generate_pick_list, get_pick_list, get_pick_list_by_outbound_order } from "@/lib/api/inventory";
 import { update_outbound_order_status } from "@/lib/api/outbound";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
-import { Truck, MapPin, Package, AlertCircle, CheckCircle2, ListChecks } from "lucide-react";
+import { Truck, MapPin, Package, AlertCircle, CheckCircle2, ListChecks, RefreshCw } from "lucide-react";
 import type { OutboundOrderResponse } from "@/types/outbound";
 import type { PickListResponse } from "@/types/inventory";
 
@@ -99,6 +99,20 @@ export function OutboundPickListDialog({
     }
   };
 
+  const handleRefresh = async () => {
+    if (!pickList || isLoading) return;
+    setIsLoading(true);
+    try {
+      const fresh = await get_pick_list(pickList.id);
+      setPickList(fresh);
+      setCheckedRecordIds(new Set());
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDispatch = async () => {
     if (!isAllChecked) {
       toast.error("Please retrieve and check off all items in the pick list before dispatching.");
@@ -135,6 +149,19 @@ export function OutboundPickListDialog({
                 Verify and check off all physical pallets retrieved from cold storage slots
               </DialogDescription>
             </div>
+            {pickList && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleRefresh()}
+                disabled={isLoading}
+                className="text-xs font-semibold border-[#e2e8f0] hover:bg-[#f8fafc] text-[#0f172a] flex items-center gap-1.5 shrink-0"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />{" "}
+                Refresh
+              </Button>
+            )}
           </div>
         </DialogHeader>
 

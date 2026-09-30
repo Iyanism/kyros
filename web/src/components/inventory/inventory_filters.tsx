@@ -1,5 +1,10 @@
 import { Search, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DateRangeFilter,
+  EMPTY_DATE_RANGE,
+  type DateRange,
+} from "@/components/shared/date_range_filter";
 
 interface InventoryFiltersProps {
   searchTerm: string;
@@ -13,6 +18,12 @@ interface InventoryFiltersProps {
   clientsList?: { id: string; name: string }[];
   selectedClient?: string;
   onClientChange?: (value: string) => void;
+  /** Filter on pallet received date (created_at). */
+  receivedRange?: DateRange;
+  onReceivedRangeChange?: (range: DateRange) => void;
+  /** Filter on batch expiry date. */
+  expiryRange?: DateRange;
+  onExpiryRangeChange?: (range: DateRange) => void;
 }
 
 export function InventoryFilters({
@@ -26,10 +37,20 @@ export function InventoryFilters({
   clientsList,
   selectedClient = "all",
   onClientChange,
+  receivedRange = EMPTY_DATE_RANGE,
+  onReceivedRangeChange,
+  expiryRange = EMPTY_DATE_RANGE,
+  onExpiryRangeChange,
 }: InventoryFiltersProps) {
+  const hasDateFilters =
+    receivedRange.from !== "" ||
+    receivedRange.to !== "" ||
+    expiryRange.from !== "" ||
+    expiryRange.to !== "";
+
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#e2e8f0] shadow-xs">
-      <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <div className="flex flex-1 flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
         {/* Search Bar */}
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94a3b8]" />
@@ -82,13 +103,30 @@ export function InventoryFilters({
           <option value="PICKED">Picked</option>
           <option value="DISPATCHED">Dispatched</option>
         </select>
+
+        {onReceivedRangeChange && (
+          <DateRangeFilter
+            label="Received"
+            value={receivedRange}
+            onChange={onReceivedRangeChange}
+          />
+        )}
+
+        {onExpiryRangeChange && (
+          <DateRangeFilter
+            label="Expiry"
+            value={expiryRange}
+            onChange={onExpiryRangeChange}
+          />
+        )}
       </div>
 
       {/* Reset button */}
       {(searchTerm ||
         selectedZone !== "all" ||
         selectedStatus !== "all" ||
-        selectedClient !== "all") && (
+        selectedClient !== "all" ||
+        hasDateFilters) && (
         <Button
           type="button"
           variant="ghost"

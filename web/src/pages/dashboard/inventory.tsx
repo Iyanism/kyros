@@ -5,19 +5,33 @@ import { InventoryStats } from "@/components/inventory/inventory_stats";
 import { InventoryFilters } from "@/components/inventory/inventory_filters";
 import { InventoryTable } from "@/components/inventory/inventory_table";
 import { ClientInventorySummaryPanel } from "@/components/inventory/client_inventory_summary";
-import { get_all_inventory, get_client_inventory } from "@/lib/api/inventory";
+import {
+  dateInRange,
+  EMPTY_DATE_RANGE,
+  type DateRange,
+} from "@/components/shared/date_range_filter";
+import {
+  get_all_inventory,
+  get_client_inventory,
+  get_client_inventory_summary,
+} from "@/lib/api/inventory";
 import { get_clients } from "@/lib/api/client";
 import { getApiErrorMessage } from "@/lib/api/apiClient";
-import type { PalletItemResponse } from "@/types/inventory";
+import type { ClientInventorySummary, PalletItemResponse } from "@/types/inventory";
 import type { ClientResponse } from "@/types/client";
 
 export function Inventory() {
   const [items, setItems] = useState<PalletItemResponse[]>([]);
+  const [clientSummaries, setClientSummaries] = useState<
+    ClientInventorySummary[] | null
+  >(null);
   const [clients, setClients] = useState<ClientResponse[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedZone, setSelectedZone] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedClient, setSelectedClient] = useState("all");
+  const [receivedRange, setReceivedRange] = useState<DateRange>(EMPTY_DATE_RANGE);
+  const [expiryRange, setExpiryRange] = useState<DateRange>(EMPTY_DATE_RANGE);
   const [isLoading, setIsLoading] = useState(true);
 
   // Client list is admin-only; operators/clients simply get no filter
@@ -40,12 +54,20 @@ export function Inventory() {
 
     const loadData = async () => {
       try {
-        const inventoryData =
-          selectedClient === "all"
-            ? await get_all_inventory()
-            : await get_client_inventory(selectedClient);
-        if (cancelled) return;
-        setItems(inventoryData);
+        if (selectedClient === "all") {
+          const inventoryData = await get_all_inventory();
+          if (cancelled) return;
+          setItems(inventoryData);
+          setClientSummaries(null);
+        } else {
+          const [inventoryData, summaryData] = await Promise.all([
+            get_client_inventory(selectedClient),
+            get_client_inventory_summary(selectedClient).catch(() => null),
+          ]);
+          if (cancelled) return;
+          setItems(inventoryData);
+          setClientSummaries(summaryData);
+        }
       } catch (error) {
         console.error("Failed to load inventory items:", error);
         toast.error(getApiErrorMessage(error));
@@ -77,8 +99,16 @@ export function Inventory() {
     const matchesStatus =
       selectedStatus === "all" ||
       (item.status && item.status.toUpperCase() === selectedStatus.toUpperCase());
+    const matchesReceived = dateInRange(item.created_at, receivedRange);
+    const matchesExpiry = dateInRange(item.expiry_date, expiryRange);
 
-    return matchesSearch && matchesZone && matchesStatus;
+    return (
+      matchesSearch &&
+      matchesZone &&
+      matchesStatus &&
+      matchesReceived &&
+      matchesExpiry
+    );
   });
 
   const handleResetFilters = () => {
@@ -86,7 +116,18 @@ export function Inventory() {
     setSelectedZone("all");
     setSelectedStatus("all");
     setSelectedClient("all");
+    setReceivedRange(EMPTY_DATE_RANGE);
+    setExpiryRange(EMPTY_DATE_RANGE);
   };
+
+  const hasLocalFilters =
+    searchTerm.trim() !== "" ||
+    selectedZone !== "all" ||
+    selectedStatus !== "all" ||
+    receivedRange.from !== "" ||
+    receivedRange.to !== "" ||
+    expiryRange.from !== "" ||
+    expiryRange.to !== "";
 
   if (isLoading) {
     return (
@@ -126,10 +167,21 @@ export function Inventory() {
             clientsList={clients.map((c) => ({ id: c.id, name: c.name }))}
             selectedClient={selectedClient}
             onClientChange={setSelectedClient}
+            receivedRange={receivedRange}
+            onReceivedRangeChange={setReceivedRange}
+            expiryRange={expiryRange}
+            onExpiryRangeChange={setExpiryRange}
             onReset={handleResetFilters}
           />
 
-          <ClientInventorySummaryPanel items={filteredItems} />
+          <ClientInventorySummaryPanel
+            items={filteredItems}
+            summaries={
+              selectedClient !== "all" && !hasLocalFilters && clientSummaries
+                ? clientSummaries
+                : undefined
+            }
+          />
 
           <InventoryTable items={filteredItems} />
         </div>

@@ -1,9 +1,25 @@
 import type { InboundOrderResponse, OrderStatus } from "@/types/order";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { InboundOrderStatusBadge } from "./inbound_status_badge";
 import { calculateTotalWeightInKg } from "./inbound_items_list";
-import { Eye, Trash2, Truck, Package, Layers, CheckCircle2, XCircle, Play } from "lucide-react";
+import {
+  Eye,
+  Trash2,
+  Truck,
+  Package,
+  Layers,
+  CheckCircle2,
+  XCircle,
+  Play,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface InboundTableProps {
@@ -31,9 +47,12 @@ export function InboundTable({
         <div className="h-12 w-12 rounded-full bg-[#f1f5f9] flex items-center justify-center mb-3 text-[#94a3b8]">
           <Package className="h-6 w-6" />
         </div>
-        <h3 className="text-[15px] font-bold text-[#0f172a]">No Inbound Orders Found</h3>
+        <h3 className="text-[15px] font-bold text-[#0f172a]">
+          No Inbound Orders Found
+        </h3>
         <p className="text-xs text-[#64748b] mt-1 max-w-sm">
-          No inbound shipment orders match your filter criteria or no intake manifests have been created yet.
+          No inbound shipment orders match your filter criteria or no intake
+          manifests have been created yet.
         </p>
       </div>
     );
@@ -71,7 +90,8 @@ export function InboundTable({
           <TableBody className="divide-y divide-[#e2e8f0]">
             {orders.map((order) => {
               const weightKg = calculateTotalWeightInKg(order.items);
-              const firstItemName = order.items[0]?.product_name || "Unspecified item";
+              const firstItemName =
+                order.items[0]?.product_name || "Unspecified item";
               const additionalItemsCount = order.items.length - 1;
 
               return (
@@ -108,15 +128,18 @@ export function InboundTable({
                     <div className="flex items-center gap-2">
                       <Layers className="h-4 w-4 text-[#94a3b8] shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-[#0f172a] truncate max-w-[200px]">
+                        <p className="text-xs font-medium text-[#0f172a] truncate max-w-50">
                           {firstItemName}
                         </p>
                         {additionalItemsCount > 0 ? (
                           <span className="text-[10px] font-semibold text-[#2457e6] hover:underline">
-                            +{additionalItemsCount} more item{additionalItemsCount > 1 ? "s" : ""}
+                            +{additionalItemsCount} more item
+                            {additionalItemsCount > 1 ? "s" : ""}
                           </span>
                         ) : (
-                          <span className="text-[10px] text-[#94a3b8]">Single item</span>
+                          <span className="text-[10px] text-[#94a3b8]">
+                            Single item
+                          </span>
                         )}
                       </div>
                     </div>
@@ -125,20 +148,32 @@ export function InboundTable({
                   {/* Total Quantity / Weight */}
                   <TableCell className="py-4 text-right">
                     <div className="text-[13px] font-bold text-[#0f172a]">
-                      {order.total_quantity.toLocaleString()} <span className="text-[10px] font-normal text-[#64748b]">kg</span>
+                      {order.total_quantity.toLocaleString()}{" "}
+                      <span className="text-[10px] font-normal text-[#64748b]">
+                        kg
+                      </span>
                     </div>
                     <div className="text-[11px] text-[#64748b] font-medium">
-                      {weightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg total
+                      {weightKg.toLocaleString(undefined, {
+                        maximumFractionDigits: 1,
+                      })}{" "}
+                      kg total
                     </div>
                   </TableCell>
 
                   {/* Status Badge */}
-                  <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
+                  <TableCell
+                    className="py-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <InboundOrderStatusBadge status={order.status} />
                   </TableCell>
 
                   {/* Contextual Actions */}
-                  <TableCell className="py-4 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
+                  <TableCell
+                    className="py-4 pr-6 text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="flex items-center justify-end gap-1.5">
                       {/* Admin Approve/Reject */}
                       {isAdmin && order.status === "submitted" && (
@@ -150,7 +185,8 @@ export function InboundTable({
                             className="h-8 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                             title="Approve & Reserve Slots"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />{" "}
+                            Approve
                           </Button>
                           <Button
                             type="button"
@@ -191,23 +227,25 @@ export function InboundTable({
                       )}
 
                       {/* Staff Process Intake (Palletisation & Storage) */}
-                      {isStaff && (order.status === "arrived" || order.status === "processing") && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            if (order.status === "arrived") {
-                              onStatusChange(order.id, "processing");
-                            }
-                            if (onOpenProcessingFlow) {
-                              onOpenProcessingFlow(order);
-                            }
-                          }}
-                          className="h-8 px-2.5 text-xs bg-[#2457e6] hover:bg-[#1d4ed8] text-white font-semibold"
-                        >
-                          <Play className="h-3.5 w-3.5 mr-1" /> Process
-                        </Button>
-                      )}
+                      {isStaff &&
+                        (order.status === "arrived" ||
+                          order.status === "processing") && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              if (order.status === "arrived") {
+                                onStatusChange(order.id, "processing");
+                              }
+                              if (onOpenProcessingFlow) {
+                                onOpenProcessingFlow(order);
+                              }
+                            }}
+                            className="h-8 px-2.5 text-xs bg-[#2457e6] hover:bg-[#1d4ed8] text-white font-semibold"
+                          >
+                            <Play className="h-3.5 w-3.5 mr-1" /> Process
+                          </Button>
+                        )}
 
                       {/* Always view detail */}
                       <Button
@@ -245,4 +283,3 @@ export function InboundTable({
     </div>
   );
 }
-

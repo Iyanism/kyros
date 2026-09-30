@@ -20,8 +20,3 @@ export async function get_stock_movements_by_client(clientId: string): Promise<S
   const { data } = await apiClient.get<StockMovementResponse[]>(`/stock-movements/movements/client/${clientId}`);
   return data;
 }
-
-export async function get_stock_movements_by_order(orderId: string): Promise<StockMovementResponse[]> {
-  const { data } = await apiClient.get<StockMovementResponse[]>(`/stock-movements/movements/order/${orderId}`);
-  return data;
-}

@@ -14,6 +14,7 @@ import { Outbound } from "@/pages/dashboard/outbound";
 import { Billing } from "@/pages/dashboard/billing";
 import { StockMovements } from "@/pages/dashboard/stock_movements";
 import { Reports } from "@/pages/dashboard/reports";
+import { Account } from "@/pages/dashboard/account";
 import { ErrorBoundaryPage } from "@/pages/error-boundary";
 import type { UserRole } from "@/types/user";
 
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
       { path: "/outbound", element: <Outbound />, loader: protectedLoader },
       { path: "/billing", element: <Billing />, loader: protectedLoader },
       { path: "/reports", element: <Reports />, loader: adminLoader },
+      { path: "/account", element: <Account />, loader: protectedLoader },
 
       { path: "/users", element: <Users />, loader: adminLoader },
       { path: "/clients", element: <Clients />, loader: adminLoader },

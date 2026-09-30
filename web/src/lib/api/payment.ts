@@ -37,15 +37,6 @@ export async function get_payment_by_invoice(
   return data;
 }
 
-export async function get_client_payments(
-  client_id: string
-): Promise<PaymentDetailResponse[]> {
-  const { data } = await apiClient.get<PaymentDetailResponse[]>(
-    `/payments/client/${client_id}`
-  );
-  return data;
-}
-
 export async function refund_payment(
   payment_id: string
 ): Promise<PaymentDetailResponse> {

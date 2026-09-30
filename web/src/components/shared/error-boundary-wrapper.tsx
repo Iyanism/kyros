@@ -16,7 +16,7 @@ export function ErrorBoundaryWrapper({
     <ErrorBoundary
       showDebug={showDebug}
       onError={(error, errorInfo) => {
-        console.log(`[${name}] Error caught:`, {
+        console.error(`[${name}] Error caught:`, {
           error: error.message,
           componentStack: errorInfo.componentStack,
         });

@@ -34,6 +34,21 @@ export async function refreshToken(): Promise<LoginResponse> {
   return data;
 }
 
+// Single-flight refresh so parallel 401s only trigger one /auth/refresh call
+let refreshPromise: Promise<string | null> | null = null;
+
+export function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = refreshToken()
+      .then((data) => data.access_token)
+      .catch(() => null)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 export async function logout(): Promise<void> {
   await apiClient.post("/auth/logout");
 }

@@ -11,7 +11,13 @@ import { PaymentHistoryDialog } from "@/components/payment/payment_history_dialo
 import { Button } from "@/components/ui/button";
 import { Receipt } from "lucide-react";
 import {
+  dateInRange,
+  EMPTY_DATE_RANGE,
+  type DateRange,
+} from "@/components/shared/date_range_filter";
+import {
   get_invoices,
+  get_invoice,
   update_invoice_status,
   download_invoice_pdf,
 } from "@/lib/api/invoice";
@@ -27,6 +33,7 @@ export function Billing() {
   const [invoices, setInvoices] = useState<InvoiceDetailResponse[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [createdRange, setCreatedRange] = useState<DateRange>(EMPTY_DATE_RANGE);
   const [isLoading, setIsLoading] = useState(true);
 
   // Active detail modal
@@ -94,8 +101,18 @@ export function Billing() {
   };
 
   const handleOpenDetail = (invoice: InvoiceDetailResponse) => {
+    // Show the row immediately, then refresh with the latest server state
     setActiveInvoice(invoice);
     setDetailModalOpen(true);
+    void (async () => {
+      try {
+        const fresh = await get_invoice(invoice.id);
+        setInvoices((prev) => prev.map((inv) => (inv.id === fresh.id ? fresh : inv)));
+        setActiveInvoice((prev) => (prev && prev.id === fresh.id ? fresh : prev));
+      } catch {
+        // Keep the row data if the refresh fails (offline / permission edge cases)
+      }
+    })();
   };
 
   const handlePayInvoice = (invoice: InvoiceDetailResponse) => {
@@ -127,13 +144,15 @@ export function Billing() {
       (inv.client_gstin && inv.client_gstin.toLowerCase().includes(term));
 
     const matchesStatus = selectedStatus === "all" || inv.status === selectedStatus;
+    const matchesDate = dateInRange(inv.created_at, createdRange);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const handleResetFilters = () => {
     setSearchTerm("");
     setSelectedStatus("all");
+    setCreatedRange(EMPTY_DATE_RANGE);
   };
 
   if (isLoading) {
@@ -183,6 +202,8 @@ export function Billing() {
             onSearchChange={setSearchTerm}
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
+            createdRange={createdRange}
+            onCreatedRangeChange={setCreatedRange}
             onReset={handleResetFilters}
           />
 

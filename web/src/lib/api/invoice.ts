@@ -15,15 +15,6 @@ export async function get_invoice(invoice_id: string): Promise<InvoiceDetailResp
   return data;
 }
 
-export async function get_client_invoices(
-  client_id: string
-): Promise<InvoiceDetailResponse[]> {
-  const { data } = await apiClient.get<InvoiceDetailResponse[]>(
-    `/invoices/client/${client_id}`
-  );
-  return data;
-}
-
 export async function generate_invoice(
   payload: GenerateInvoiceRequest
 ): Promise<InvoiceDetailResponse> {

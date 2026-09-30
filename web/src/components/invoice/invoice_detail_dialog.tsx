@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
 import type { InvoiceDetailResponse, InvoiceStatus } from "@/types/invoice";
+import type { PaymentDetailResponse } from "@/types/payment";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "./invoice_status_badge";
-import { Download, Building2, Calendar, FileText, CheckCircle2, Send, CreditCard } from "lucide-react";
+import { PaymentStatusBadge } from "@/components/payment/payment_status_badge";
+import { get_payment_by_invoice } from "@/lib/api/payment";
+import { Download, Building2, Calendar, FileText, CheckCircle2, Send, CreditCard, Receipt } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface InvoiceDetailDialogProps {
@@ -23,6 +27,28 @@ export function InvoiceDetailDialog({
   onPayInvoice,
 }: InvoiceDetailDialogProps) {
   const { user } = useAuth();
+  const [payment, setPayment] = useState<PaymentDetailResponse | null>(null);
+
+  useEffect(() => {
+    if (!open || !invoice) {
+      setPayment(null);
+      return;
+    }
+    let cancelled = false;
+    setPayment(null);
+    get_payment_by_invoice(invoice.id)
+      .then((data) => {
+        if (!cancelled) setPayment(data);
+      })
+      .catch(() => {
+        // No payment recorded for this invoice yet
+        if (!cancelled) setPayment(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [invoice?.id, open]);
+
   if (!invoice) return null;
 
   const isAdmin = user?.role === "admin";
@@ -205,6 +231,38 @@ export function InvoiceDetailDialog({
               </div>
             </div>
           </div>
+
+          {/* Recorded Payment */}
+          {payment && (
+            <div className="space-y-2">
+              <h4 className="text-[13px] font-bold text-[#0f172a] flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-[#2457e6]" />
+                Recorded Payment
+              </h4>
+              <div className="rounded-xl border border-[#e2e8f0] bg-white p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5">
+                  <p className="font-bold text-[#0f172a] font-mono">
+                    {payment.receipt_number || `PAY-${payment.id.slice(0, 8)}`}
+                  </p>
+                  <p className="text-[10px] text-[#64748b] capitalize">
+                    {payment.method} · {new Date(payment.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-[#0f172a]">
+                    ₹
+                    {payment.amount.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                    })}{" "}
+                    <span className="text-[10px] font-normal text-[#64748b]">
+                      {payment.currency}
+                    </span>
+                  </span>
+                  <PaymentStatusBadge status={payment.status} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Actions & Pay Button */}
           <div className="pt-3 border-t border-[#e2e8f0] flex flex-wrap items-center justify-between gap-3">
