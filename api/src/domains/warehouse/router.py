@@ -20,7 +20,6 @@ from src.domains.warehouse.service import (
     WarehouseDuplicateError,
     WarehouseNotFoundError,
     WarehouseService,
-    WarehouseValidationError,
 )
 
 router = APIRouter(

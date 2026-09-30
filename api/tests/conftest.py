@@ -16,7 +16,7 @@ from src.main import app
 # Engine & session factory (shared across all tests)
 # ---------------------------------------------------------------------------
 test_engine = create_async_engine(
-    settings.DATABASE_URL, poolclass=NullPool, echo=False
+    settings.TEST_DATABASE_URL, poolclass=NullPool, echo=False
 )
 TestAsyncSessionLocal = async_sessionmaker(
     test_engine, expire_on_commit=False, class_=AsyncSession
@@ -59,9 +59,7 @@ async def setup_db():
 # ---------------------------------------------------------------------------
 # Helper functions (importable by other test modules)
 # ---------------------------------------------------------------------------
-async def create_chamber(
-    authed_client: AsyncClient, category: str = "frozen"
-) -> dict:
+async def create_chamber(authed_client: AsyncClient, category: str = "frozen") -> dict:
     uid = uuid.uuid4().hex[:6]
     payload = {
         "name": f"Chamber-{category}-{uid}",
@@ -112,9 +110,7 @@ async def create_order(authed_client: AsyncClient, client_id: str) -> dict:
     return resp.json()
 
 
-async def advance_to_processing(
-    authed_client: AsyncClient, order_id: str
-) -> None:
+async def advance_to_processing(authed_client: AsyncClient, order_id: str) -> None:
     for s in ("approved", "in_transit", "arrived", "processing"):
         resp = await authed_client.patch(
             f"/inbound-orders/{order_id}/status", json={"status": s}
@@ -123,9 +119,7 @@ async def advance_to_processing(
 
 
 async def palletise(authed_client: AsyncClient, order_id: str) -> dict:
-    resp = await authed_client.post(
-        f"/inventory/orders/{order_id}/pallets"
-    )
+    resp = await authed_client.post(f"/inventory/orders/{order_id}/pallets")
     assert resp.status_code == 200, resp.text
     return resp.json()
 
@@ -152,9 +146,7 @@ async def mark_reserved(authed_client: AsyncClient, client_id: str) -> None:
         await session.commit()
 
 
-async def allocate(
-    authed_client: AsyncClient, order_id: str, chamber_id: str
-) -> dict:
+async def allocate(authed_client: AsyncClient, order_id: str, chamber_id: str) -> dict:
     resp = await authed_client.post(
         f"/inventory/orders/{order_id}/allocate",
         json={"chamber_id": chamber_id},
@@ -284,7 +276,9 @@ async def authed_client(auth_token: str) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest.fixture
-async def operator_client(authed_client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
+async def operator_client(
+    authed_client: AsyncClient,
+) -> AsyncGenerator[AsyncClient, None]:
     """Create an OPERATOR user and return an authenticated client."""
     email = f"operator{uuid.uuid4().hex[:8]}@test.com"
     _, token = await _create_and_login_user(
@@ -324,7 +318,9 @@ async def client_user_token(authed_client: AsyncClient) -> tuple[dict, str]:
 
 
 @pytest.fixture
-async def client_user_client(client_user_token: tuple) -> AsyncGenerator[AsyncClient, None]:
+async def client_user_client(
+    client_user_token: tuple,
+) -> AsyncGenerator[AsyncClient, None]:
     """Authenticated client as CLIENT role."""
     _, token = client_user_token
     transport = ASGITransport(app=app)

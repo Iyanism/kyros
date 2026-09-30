@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     # Database Configurations
     DATABASE_URL: str = ""  # Database url
+    TEST_DATABASE_URL: str = ""  # Database url for testing
     DATABASE_POOL_SIZE: int = 10  # Database session connection pool size
     DATABASE_MAX_OVERFLOW: int = 20  # Maximum amount the connection pool size can grow
     DATABASE_ECHO: bool = False  # If sqlalchemy debug log should be shown or not
