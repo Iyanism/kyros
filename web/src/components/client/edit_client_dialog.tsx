@@ -1,5 +1,6 @@
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import { update_client } from "@/lib/api/client";
+import { clientSchema } from "@/lib/validators/client";
 import type { ClientResponse, ClientUpdate } from "@/types/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -45,9 +46,23 @@ export function EditClientDialog({ client, open, onOpenChange, onClientUpdated }
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!client) return;
+
+    const parsed = clientSchema.safeParse({
+      ...form,
+      pin_code: form.pin_code ?? 0,
+      gstin: form.gstin?.trim() === "" ? null : form.gstin,
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Invalid form input");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const updated = await update_client(client.id, form);
+      const updated = await update_client(client.id, {
+        ...parsed.data,
+        gstin: parsed.data.gstin ?? null,
+      });
       onClientUpdated(updated);
       toast.success(`Client "${updated.name}" updated successfully`);
       onOpenChange(false);
@@ -109,6 +124,8 @@ export function EditClientDialog({ client, open, onOpenChange, onClientUpdated }
                 </Label>
                 <Input
                   id="edit-phone"
+                  type="tel"
+                  inputMode="numeric"
                   placeholder="9823198456"
                   value={form.phone_number ?? ""}
                   onChange={(e) => setForm({ ...form, phone_number: e.target.value })}

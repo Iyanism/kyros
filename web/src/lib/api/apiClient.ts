@@ -84,6 +84,18 @@ export function getApiErrorMessage(error: unknown): string {
     if (typeof detail === "string") {
       return detail;
     }
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0] as { loc?: unknown; msg?: unknown };
+      const msg =
+        typeof first.msg === "string"
+          ? first.msg.replace(/^Value error, /, "")
+          : null;
+      if (msg) {
+        const loc = Array.isArray(first.loc) ? first.loc.slice(1) : [];
+        const field = loc.filter((part) => typeof part === "string").join(".");
+        return field ? `${field}: ${msg}` : msg;
+      }
+    }
     return error.message;
   }
   return "Something went wrong. Please try again.";

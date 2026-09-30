@@ -1,4 +1,14 @@
 import { z } from "zod";
+import { clientPhoneSchema } from "./client";
+
+export const userPhoneSchema = z
+  .string()
+  .transform((value) => value.replace(/[\s-]/g, ""))
+  .pipe(
+    z
+      .string()
+      .regex(/^\+?[1-9]\d{1,14}$/, "Enter a valid phone number (e.g. 9823198456)"),
+  );
 
 export const loginSchema = z.object({
   email: z.email("Enter a valid email address"),
@@ -8,7 +18,7 @@ export const loginSchema = z.object({
 export const companySchema = z.object({
   name: z.string().min(2, "Company name is required"),
   email: z.email("Enter a valid business email"),
-  phone_number: z.string().min(10, "Enter a valid phone number"),
+  phone_number: clientPhoneSchema,
   address: z.string().min(3, "Street address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
@@ -18,7 +28,12 @@ export const companySchema = z.object({
 
 export const accountSchema = z.object({
   full_name: z.string().min(2, "Full name is required"),
-  phone_number: z.string().nullable().optional().transform((v) => v || null),
+  phone_number: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((v) => (v == null || v.trim() === "" ? null : v.replace(/[\s-]/g, "")))
+    .pipe(z.union([z.null(), userPhoneSchema])),
   email: z.string().email("Enter a valid login email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });

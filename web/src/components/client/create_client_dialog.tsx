@@ -119,6 +119,8 @@ export function CreateClientDialog({ onAddClient }: CreateClientDialogProps) {
                 </Label>
                 <Input
                   id="client-phone"
+                  type="tel"
+                  inputMode="numeric"
                   placeholder="e.g. 9823198456"
                   value={form.phone_number}
                   onChange={(e) => setForm({ ...form, phone_number: e.target.value })}

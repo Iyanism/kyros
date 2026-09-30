@@ -1,5 +1,6 @@
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import { update_user } from "@/lib/api/user";
+import { userPhoneSchema } from "@/lib/validators/auth";
 import type { UserClientResponse, UserRole, UserUpdate } from "@/types/user";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -62,13 +63,27 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
+
+    const rawPhone = (form.phone_number ?? "").trim();
+    let phone: string | null = null;
+    if (rawPhone !== "") {
+      const parsedPhone = userPhoneSchema.safeParse(rawPhone);
+      if (!parsedPhone.success) {
+        toast.error(
+          parsedPhone.error.issues[0]?.message ?? "Invalid phone number",
+        );
+        return;
+      }
+      phone = parsedPhone.data;
+    }
+
     setIsSubmitting(true);
 
     // Build payload — omit password if blank
     const payload = {
       full_name: form.full_name ?? user.full_name,
       email: form.email ?? user.email,
-      phone_number: form.phone_number ?? null,
+      phone_number: phone,
       role: form.role ?? user.role,
       client_id: (form.role ?? user.role) === "client" ? (form.client_id ?? null) : null,
     } satisfies UserUpdate;
@@ -83,7 +98,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         ...user,
         full_name: payload.full_name ?? user.full_name,
         email: payload.email ?? user.email,
-        phone_number: payload.phone_number ?? user.phone_number,
+        phone_number: payload.phone_number,
         role: payload.role ?? user.role,
         client_id: payload.client_id ?? user.client_id,
         client: payload.role === "client"
@@ -161,6 +176,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               </Label>
               <Input
                 id="edit-phone"
+                type="tel"
                 placeholder="e.g. 9823198456"
                 value={form.phone_number ?? ""}
                 onChange={(e) => setForm({ ...form, phone_number: e.target.value })}

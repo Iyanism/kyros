@@ -1,5 +1,6 @@
 import { getApiErrorMessage } from "@/lib/api/apiClient";
 import { create_user } from "@/lib/api/user";
+import { userPhoneSchema } from "@/lib/validators/auth";
 import type { UserInfo, UserClientResponse, UserRole } from "@/types/user";
 import { useEffect, useState, type SubmitEventHandler } from "react";
 import { toast } from "sonner";
@@ -38,9 +39,13 @@ export function CreateUserDialog({ onAddUser }: CreateUserDialogProps) {
 
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
+    const parsedPhone = userPhoneSchema.safeParse(user.phone_number ?? "");
+    if (!parsedPhone.success) {
+      toast.error(parsedPhone.error.issues[0]?.message ?? "Invalid phone number");
+      return;
+    }
     try {
-      console.log("User Details", user);
-      const res = await create_user(user);
+      const res = await create_user({ ...user, phone_number: parsedPhone.data });
       onAddUser(res);
       toast.success(`User Successfully Created: ${user.full_name}`);
       setOpen(false);
@@ -143,6 +148,7 @@ export function CreateUserDialog({ onAddUser }: CreateUserDialogProps) {
               </Label>
               <Input
                 id="phone"
+                type="tel"
                 placeholder="e.g. 9823198456"
                 value={user.phone_number || ""}
                 onChange={(e) =>

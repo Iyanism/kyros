@@ -26,6 +26,26 @@ class TestClientRoute:
         body = response.json()
         assert body["detail"]["code"] == "CLIENT_ALREADY_EXISTS"
 
+    async def test_create_client_invalid_phone(
+        self, authed_client: AsyncClient, sample_client_data: Mapping[str, str]
+    ):
+        for phone in ("12345678901", "982319845x", "123456789"):
+            payload = {**sample_client_data, "phone_number": phone}
+            response = await authed_client.post("/clients", json=payload)
+            assert response.status_code == 422
+            detail = response.json()["detail"]
+            assert isinstance(detail, list)
+            assert detail[0]["loc"][1] == "phone_number"
+
+    async def test_update_client_invalid_phone(
+        self, authed_client: AsyncClient, created_client: Mapping[str, str]
+    ):
+        client_id = created_client["id"]
+        response = await authed_client.patch(
+            f"/clients/{client_id}", json={"phone_number": "98231984567890"}
+        )
+        assert response.status_code == 422
+
     async def test_get_clients(
         self, authed_client: AsyncClient, created_client: Mapping[str, str]
     ):

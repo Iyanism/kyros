@@ -117,8 +117,9 @@ export function RegistrationForm() {
                   <Input
                     id="company-phone"
                     type="tel"
+                    inputMode="numeric"
                     leftIcon={<Phone className="h-4 w-4" />}
-                    placeholder="+91 98765 43210"
+                    placeholder="9876543210"
                     value={client.phone_number}
                     onChange={(e) => setClient({ ...client, phone_number: e.target.value })}
                   />
